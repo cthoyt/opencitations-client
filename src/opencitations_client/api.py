@@ -29,10 +29,10 @@ class Citation(BaseModel):
         ..., description="references to the article that cites the query article"
     )
     cited: list[Reference] = Field(..., description="references to the article that was queried")
-    creation: datetime.date
-    timespan: datetime.timedelta
-    journal_self_citation: bool
-    author_self_citation: bool
+    creation: datetime.date | None = None
+    timespan: datetime.timedelta | None = None
+    journal_self_citation: bool | None = None
+    author_self_citation: bool | None = None
 
     @field_validator("creation", mode="before")
     @classmethod
@@ -104,7 +104,7 @@ def _process(record: dict[str, Any]) -> Citation:
     record["author_self_citation"] = _bool(record.pop("author_sc"))
     record["citing"] = _process_curies(record.pop("citing"))
     record["cited"] = _process_curies(record.pop("cited"))
-    return Citation.model_validate(record)
+    return Citation.model_validate({k: v for k, v in record.items() if v})
 
 
 def _process_curies(s: str) -> list[Reference]:
