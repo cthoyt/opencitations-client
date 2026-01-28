@@ -1,8 +1,9 @@
 """Access and download data from OpenCitations."""
 
-from .api import CitationsResponse, get_citations
+from .api import Citation, get_incoming_citations, get_outgoing_citations
 
 __all__ = [
-    "CitationsResponse",
-    "get_citations",
+    "Citation",
+    "get_incoming_citations",
+    "get_outgoing_citations",
 ]

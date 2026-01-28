@@ -4,7 +4,7 @@ import unittest
 
 from curies import Reference
 
-from opencitations_client import get_citations
+from opencitations_client import get_incoming_citations
 from opencitations_client.version import get_version
 
 
@@ -25,7 +25,7 @@ class TestVersion(unittest.TestCase):
         # this one cites the bioregistry paper
         psimi_reference = Reference.from_curie("doi:10.1021/acs.analchem.4c04091")
 
-        citations = get_citations(bioregistry_reference)
+        citations = get_incoming_citations(bioregistry_reference)
         self.assertTrue(
             any(
                 reference == psimi_reference

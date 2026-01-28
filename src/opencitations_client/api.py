@@ -11,8 +11,9 @@ from pydantic import BaseModel, Field, field_validator
 from opencitations_client.version import get_version
 
 __all__ = [
-    "CitationsResponse",
-    "get_citations",
+    "Citation",
+    "get_incoming_citations",
+    "get_outgoing_citations",
 ]
 
 BASE_V2 = "https://api.opencitations.net/index/v2"
@@ -20,7 +21,7 @@ AGENT = f"python-opencitations-client v{get_version()}"
 CITATION_PREFIXES = {"doi", "pubmed", "omid"}
 
 
-class CitationsResponse(BaseModel):
+class Citation(BaseModel):
     """Wraps the results from a citation."""
 
     reference: Reference
@@ -47,10 +48,29 @@ class CitationsResponse(BaseModel):
         return v
 
 
-def get_citations(
+def get_outgoing_citations(
     reference: str | Reference, *, token: str | None = None
-) -> list[CitationsResponse]:
-    """Get citations for a reference from OpenCitations.
+) -> list[Citation]:
+    """Get the articles that the given article cites, from OpenCitations.
+
+    :param reference: The reference to get citations for
+    :param token: The token to use for authentication.
+        Loaded via :func:`pystow.get_config` if not given explicitly
+    :return: A list of citations
+
+    .. seealso::
+
+        https://api.opencitations.net/index/v2#/references/{id}
+    """
+    res = _get_index_v2(f"/references/{_handle_input(reference)}", token=token)
+    res.raise_for_status()
+    return [_process(record) for record in res.json()]
+
+
+def get_incoming_citations(
+    reference: str | Reference, *, token: str | None = None
+) -> list[Citation]:
+    """Get the articles that cite a given article, from OpenCitations.
 
     :param reference: The reference to get citations for
     :param token: The token to use for authentication.
@@ -61,27 +81,34 @@ def get_citations(
 
         https://api.opencitations.net/index/v2#/citations/{id}
     """
-    # see
+    res = _get_index_v2(f"/citations/{_handle_input(reference)}", token=token)
+    res.raise_for_status()
+    return [_process(record) for record in res.json()]
+
+
+def _handle_input(reference: str | Reference) -> str:
     if isinstance(reference, str):
         reference = Reference.from_curie(reference)
     if reference.prefix not in CITATION_PREFIXES:
         raise ValueError(f"invalid prefix: {reference.prefix}, use one of {CITATION_PREFIXES}")
     if reference.prefix == "pubmed":
-        curie = f"pmid:{reference.identifier}"
+        # put it in the internal representation, which is non-standard
+        return f"pmid:{reference.identifier}"
     else:
-        curie = reference.curie
-    res = _get_index_v2(f"/citations/{curie}", token=token)
-    res.raise_for_status()
-    return [_process(record) for record in res.json()]
+        return reference.curie
 
 
-def _process(record: dict[str, Any]) -> CitationsResponse:
+def _process(record: dict[str, Any]) -> Citation:
     record["reference"] = Reference(prefix="oci", identifier=record.pop("oci"))
     record["journal_self_citation"] = _bool(record.pop("journal_sc"))
     record["author_self_citation"] = _bool(record.pop("author_sc"))
-    record["citing"] = [Reference.from_curie(curie) for curie in record.pop("citing").split(" ")]
-    record["cited"] = [Reference.from_curie(curie) for curie in record.pop("cited").split(" ")]
-    return CitationsResponse.model_validate(record)
+    record["citing"] = _process_curies(record.pop("citing"))
+    record["cited"] = _process_curies(record.pop("cited"))
+    return Citation.model_validate(record)
+
+
+def _process_curies(s: str) -> list[Reference]:
+    return [Reference.from_curie(curie) for curie in s.split(" ")]
 
 
 def _bool(s: Literal["yes", "no"]) -> bool:
