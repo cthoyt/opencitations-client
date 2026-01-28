@@ -27,7 +27,7 @@ class CitationsResponse(BaseModel):
     citing: list[Reference]
     cited: list[Reference]
     creation: datetime.date
-    timespan: str  # TODO this is the XSD duration format PnYnMnD;
+    timespan: datetime.timedelta
     journal_self_citation: bool
     author_self_citation: bool
 
@@ -95,8 +95,3 @@ def _get_index_v2(part: str, *, token: str | None = None) -> requests.Response:
 def _get(url: str, *, token: str | None = None) -> requests.Response:
     token = pystow.get_config("opencitations", "token", passthrough=token, raise_on_missing=True)
     return requests.get(url, headers={"authorization": token, "User-Agent": AGENT}, timeout=5)
-
-
-if __name__ == "__main__":
-    for _citation in get_citations("doi:10.1038/s41597-022-01807-3"):
-        pass
