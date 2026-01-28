@@ -6,7 +6,7 @@ from typing import Any, Literal
 import pystow
 import requests
 from curies import Reference
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from opencitations_client.version import get_version
 
@@ -24,8 +24,10 @@ class CitationsResponse(BaseModel):
     """Wraps the results from a citation."""
 
     reference: Reference
-    citing: list[Reference]
-    cited: list[Reference]
+    citing: list[Reference] = Field(
+        ..., description="references to the article that cites the query article"
+    )
+    cited: list[Reference] = Field(..., description="references to the article that was queried")
     creation: datetime.date
     timespan: datetime.timedelta
     journal_self_citation: bool
@@ -64,8 +66,11 @@ def get_citations(
         reference = Reference.from_curie(reference)
     if reference.prefix not in CITATION_PREFIXES:
         raise ValueError(f"invalid prefix: {reference.prefix}, use one of {CITATION_PREFIXES}")
-
-    res = _get_index_v2(f"/citations/{reference.curie}", token=token)
+    if reference.prefix == "pubmed":
+        curie = f"pmid:{reference.identifier}"
+    else:
+        curie = reference.curie
+    res = _get_index_v2(f"/citations/{curie}", token=token)
     res.raise_for_status()
     return [_process(record) for record in res.json()]
 

@@ -85,6 +85,8 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
       - name: Test with pytest and generate coverage file
+        env:
+          OPENCITATIONS_TOKEN: ${{ secrets.OPENCITATIONS_TOKEN }}
         run:
           uvx -p ${{ matrix.python-version }} --with tox-uv tox -e py
       - name: Run doctests
