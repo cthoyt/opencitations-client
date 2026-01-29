@@ -11,9 +11,9 @@ from opencitations_client.api import (
     Publisher,
     Venue,
     _process_metadata,
-    get_author,
+    get_articles,
+    get_articles_for_author,
     get_incoming_citations,
-    get_metadata,
 )
 from opencitations_client.version import get_version
 
@@ -47,7 +47,7 @@ class TestVersion(unittest.TestCase):
     def test_get_metadata(self) -> None:
         """Test getting metadata."""
         example = Reference.from_curie("doi:10.1007/978-1-4020-9632-7")
-        actual = get_metadata([example])
+        actual = get_articles([example])
         self.assertEqual(1, len(actual))
         expected = {
             "id": "doi:10.1007/978-1-4020-9632-7 isbn:9781402096327 "
@@ -70,7 +70,7 @@ class TestVersion(unittest.TestCase):
     def test_get_author(self) -> None:
         """Test getting authors."""
         example = Reference.from_curie("orcid:0000-0002-8420-0696")
-        result = get_author(example)
+        result = get_articles_for_author(example)
         self.assertIsInstance(result, list)
 
         record = {

@@ -20,10 +20,10 @@ __all__ = [
     "Person",
     "Publisher",
     "Venue",
-    "get_author",
-    "get_editor",
+    "get_articles",
+    "get_articles_for_author",
+    "get_articles_for_editor",
     "get_incoming_citations",
-    "get_metadata",
     "get_outgoing_citations",
 ]
 
@@ -221,7 +221,7 @@ METADATA_ID_RE = re.compile(
 ALLOWED_ARTICLE_PREFIXES = {"doi", "issn", "isbn", "omid", "pmid", "pmcid"}
 
 
-def get_metadata(references: list[Reference], *, token: str | None = None) -> list[Metadata]:
+def get_articles(references: list[Reference], *, token: str | None = None) -> list[Metadata]:
     """Get documents by reference.
 
     :param references: A list of references to articles, using
@@ -243,7 +243,7 @@ def get_metadata(references: list[Reference], *, token: str | None = None) -> li
     return [_process_metadata(record) for record in res.json()]
 
 
-def get_author(reference: Reference, *, token: str | None = None) -> list[Metadata]:
+def get_articles_for_author(reference: Reference, *, token: str | None = None) -> list[Metadata]:
     """Get documents incident to the author.
 
     :param reference: A reference for an author, using ``orcid`` or ``omid`` as a prefix
@@ -259,7 +259,7 @@ def get_author(reference: Reference, *, token: str | None = None) -> list[Metada
     return [_process_metadata(record) for record in res.json()]
 
 
-def get_editor(reference: Reference, *, token: str | None = None) -> list[Metadata]:
+def get_articles_for_editor(reference: Reference, *, token: str | None = None) -> list[Metadata]:
     """Get documents incident to the editor.
 
     :param reference: A reference for an editor, using ``orcid`` or ``omid`` as a prefix
