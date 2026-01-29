@@ -127,20 +127,26 @@ def _process_curies(s: str) -> list[Reference]:
 
 def _process_metadata(record: dict[str, Any]) -> Metadata:
     record["references"] = _process_curies(record.pop("id"))
-    record["authors"] = [_process_tagged(x, Person) for x in record.pop("author").split(";")]
+    record["authors"] = _process_tagged_list(record.pop("author"), Person)
     if venue_raw := record.pop("venue"):
         record["venue"] = _process_tagged(venue_raw, Venue)
     if publisher_raw := record.pop("publisher"):
         record["publisher"] = _process_tagged(publisher_raw, Publisher)
     if editor_raw := record.pop("editor"):
-        record["editor"] = _process_tagged(editor_raw, Person)
+        record["editor"] = _process_tagged_list(editor_raw, Person)
     return Metadata.model_validate(record)
+
+
+def _process_tagged_list(s: str, cls: type[X]) -> list[X]:
+    if not s:
+        return []
+    return [_process_tagged(x, cls) for x in s.split(";") if x.strip()]
 
 
 def _process_tagged(part: str, cls: type[X]) -> X:
     part = part.strip()
     if not part.endswith("]"):
-        raise ValueError
+        raise ValueError(f"no brackets were given: {part}")
     name, _, rest = part.partition("[")
     references = _process_curies(rest.rstrip("]"))
     return cls(name=name.strip(), references=references)
