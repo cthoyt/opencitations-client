@@ -7,6 +7,7 @@ import pystow
 import requests
 from curies import Reference
 from pydantic import BaseModel, Field, field_validator
+from ratelimit import limits, sleep_and_retry
 
 from opencitations_client.version import get_version
 
@@ -124,6 +125,8 @@ def _get_index_v2(part: str, *, token: str | None = None) -> requests.Response:
     return _get(f"{BASE_V2}/{part.lstrip('/')}", token=token)
 
 
+@sleep_and_retry
+@limits(calls=180, period=60)  # the OpenCitations team told me 180 calls per minute
 def _get(url: str, *, token: str | None = None) -> requests.Response:
     token = pystow.get_config("opencitations", "token", passthrough=token, raise_on_missing=True)
     return requests.get(url, headers={"authorization": token, "User-Agent": AGENT}, timeout=5)
