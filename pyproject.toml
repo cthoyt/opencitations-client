@@ -54,6 +54,7 @@ dependencies = [
     "pystow>=0.7.17",
     "pydantic",
     "requests",
+    "ratelimit",
     "figshare-client",
     "zenodo-client",
 ]
@@ -80,6 +81,7 @@ typing = [
     "pydantic",
     "types-click",
     "types-requests",
+    "types-ratelimit",
 ]
 docs-lint = [
     { include-group = "docs" },
