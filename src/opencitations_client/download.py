@@ -6,10 +6,12 @@ from collections.abc import Iterable
 from pathlib import Path
 
 import figshare_client
+import pystow
 import zenodo_client
-from pystow.utils import open_inner_zipfile
+from pystow.utils import open_inner_zipfile, safe_open, safe_open_reader, safe_open_writer
+from tqdm import tqdm
 
-from .api import Citation, _process
+from .api import Citation, Metadata, _process, _process_metadata
 
 __all__ = [
     "ensure_citation_data_csv",
@@ -25,13 +27,85 @@ __all__ = [
     "ensure_source_nt",
 ]
 
+METADATA_RECORD_ID = "15625650"
+METADATA_LATEST_VERSION = "13"
+METADATA_NAME = "output_csv_2026_01_14.tar.gz"
+METADATA_LENGTH = 129_436_832
+
 
 def ensure_metadata_csv() -> Path:
     """Ensure the metadata in CSV format (12 GB compressed, 49 GB uncompressed).
 
-    .. seealso:: https://zenodo.org/records/15625651
+    .. seealso:: https://zenodo.org/records/15625650
     """
-    return zenodo_client.download_zenodo("15625651", name="oc_meta_data_2025-06-06.tar.gz")
+    return zenodo_client.download_zenodo(METADATA_RECORD_ID, name=METADATA_NAME)
+
+
+METADATA_COLUMNS = [
+    "id",
+    "title",
+    "author",
+    "issue",
+    "volume",
+    "venue",
+    "page",
+    "pub_date",
+    "type",
+    "publisher",
+    "editor",
+]
+
+
+def iter_metadata() -> Iterable[Metadata]:
+    """Iterate over all documents."""
+    with safe_open(ensure_metadata_csv()) as file:
+        next(file)  # throw away header, which has a bunch of junk
+        reader = csv.DictReader(file, fieldnames=METADATA_COLUMNS)
+        for record in tqdm(reader, total=METADATA_LENGTH, unit="document", unit_scale=True):
+            yield _process_metadata(record)
+
+
+def iter_omid_to_doi() -> Iterable[tuple[str, str]]:
+    """Get OMID to DOI."""
+    yield from _iter_omid_to_external_identifier("doi")
+
+
+def iter_omid_to_pubmed() -> Iterable[tuple[str, str]]:
+    """Get OMID to PubMed identifier."""
+    yield from _iter_omid_to_external_identifier("pmid")
+
+
+def _iter_omid_to_external_identifier(prefix: str) -> Iterable[tuple[str, str]]:
+    with safe_open(ensure_metadata_csv()) as file:
+        next(file)  # throw away header, which has a bunch of junk
+        for line in tqdm(file, total=METADATA_LENGTH, unit="document", unit_scale=True):
+            curies, _, _ = line.partition(",")
+            references = {}
+            for curie in curies.split():
+                prefix, _, identifier = curie.partition(":")
+                if not identifier:
+                    continue
+                references[prefix] = identifier
+            omid = references["omid"]
+            if external_identifier := references.get(prefix):
+                yield omid, external_identifier
+
+
+def get_omid_to_pubmed(force_process: bool = False) -> dict[str, str]:
+    """Get a dictionary from OMIDs to PubMed identifiers."""
+    path = pystow.join(
+        "zenodo", METADATA_RECORD_ID, METADATA_LATEST_VERSION, name="omid_to_pubmed.tsv.gz"
+    )
+    if path.is_file() and not force_process:
+        with safe_open_reader(path) as file:
+            return dict(file)
+    rv = {}
+    with safe_open_writer(path) as writer:
+        writer.writerow(("omid", "pubmed"))
+        for omid, pmid in iter_omid_to_pubmed():
+            writer.writerow((omid, pmid))
+            rv[omid] = pmid
+    return rv
 
 
 def ensure_metadata_kubernetes() -> list[Path]:
@@ -115,6 +189,3 @@ def ensure_source_nt() -> list[Path]:
 # This is a file of citations that has OIDs but has been pre-subset
 # for ones corresponding to Pubmed, but without actually giving the pmids
 POCI = "https://figshare.com/ndownloader/files/53266736"
-
-#
-METADATA_URL = "https://zenodo.org/records/18324537/files/output_csv_2026_01_14.tar.gz?download=1"
