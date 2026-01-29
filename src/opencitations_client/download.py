@@ -36,6 +36,7 @@ METADATA_RECORD_ID = "15625650"
 METADATA_LATEST_VERSION = "13"
 METADATA_NAME = "output_csv_2026_01_14.tar.gz"
 METADATA_LENGTH = 129_436_832
+CITATIONS_LENGTH = 2_693_728_426
 
 MODULE = pystow.module("opencitations")
 
@@ -249,11 +250,15 @@ def get_pubmed_citations(force_process: bool = False) -> list[tuple[str, str]]:
     rv = []
     omid_to_pubmed = get_omid_to_pubmed()
     with (
-        open_zip_reader(ensure_poci(), inner_path="poci-2023_08_14-23.csv", delimiter=",") as reader,
+        open_zip_reader(
+            ensure_poci(), inner_path="poci-2023_08_14-23.csv", delimiter=","
+        ) as reader,
         safe_open_writer(out_path) as writer,
     ):
         next(reader)
-        for citation, _source in tqdm(reader):
+        for citation, _source in tqdm(
+            reader, unit_scale=True, unit="citation", total=CITATIONS_LENGTH
+        ):
             left, _, right = citation.partition("-")
             left_pmid = omid_to_pubmed.get(f"br/{left}")
             right_pmid = omid_to_pubmed.get(f"br/{right}")
