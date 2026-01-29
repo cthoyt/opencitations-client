@@ -39,10 +39,7 @@ def ensure_metadata_kubernetes() -> list[Path]:
 
     .. seealso:: https://doi.org/10.5281/zenodo.15855111
     """
-    raise NotImplementedError(
-        "waiting on https://github.com/cthoyt/zenodo-client/pull/53 to implement "
-        '`return zenodo_client.ensure_files("15855111")`'
-    )
+    return zenodo_client.download_all_zenodo("15855111")
 
 
 def ensure_metadata_rdf() -> list[Path]:
@@ -50,10 +47,7 @@ def ensure_metadata_rdf() -> list[Path]:
 
     .. seealso:: https://doi.org/10.5281/zenodo.17483301
     """
-    raise NotImplementedError(
-        "waiting on https://github.com/cthoyt/zenodo-client/pull/53 to implement "
-        '`zenodo_client.ensure_files("15855111")`'
-    )
+    return zenodo_client.download_all_zenodo("17483301")
 
 
 def ensure_provenance_rdf() -> list[Path]:
