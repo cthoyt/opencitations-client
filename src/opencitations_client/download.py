@@ -12,7 +12,7 @@ from typing import TextIO
 import figshare_client
 import pystow
 import zenodo_client
-from pystow.utils import open_inner_zipfile, open_zip_reader, safe_open_reader, safe_open_writer
+from pystow.utils import open_inner_zipfile, safe_open_reader, safe_open_writer
 from tqdm import tqdm
 
 from .api import Citation, Metadata, _process, _process_metadata
@@ -68,9 +68,15 @@ def iter_metadata() -> Iterable[Metadata]:
     """Iterate over all documents."""
     path = ensure_metadata_csv()
     with _iterate_metadata_files(path) as files:
-        for _, file in files:
+        for member, file in files:
             reader = csv.DictReader(file, fieldnames=METADATA_COLUMNS)
-            for record in tqdm(reader, total=METADATA_LENGTH, unit="document", unit_scale=True):
+            for record in tqdm(
+                reader,
+                total=METADATA_LENGTH,
+                unit="document",
+                unit_scale=True,
+                desc=f"reading {member.name}",
+            ):
                 yield _process_metadata(record)
 
 
@@ -181,9 +187,7 @@ def iterate_citations() -> Iterable[Citation]:
             for info in zip_file.infolist():
                 if not info.filename.endswith(".csv"):
                     continue
-                with open_inner_zipfile(
-                    zip_file, info.filename, operation="read", representation="text"
-                ) as file:
+                with open_inner_zipfile(zip_file, info.filename) as file:
                     for record in csv.DictReader(file):
                         yield _process(record)
 
@@ -220,51 +224,40 @@ def ensure_source_csv() -> list[Path]:
     return list(figshare_client.ensure_files(SOURCE_CSV_ID))
 
 
-# This is a file of citations that has OIDs but has been pre-subset
-# for ones corresponding to Pubmed, but without actually giving the pmids
-POCI = "https://figshare.com/ndownloader/files/53266736"
-
-
-def ensure_poci() -> Path:
-    """Enable the POCI data."""
-    return pystow.ensure(
-        "figshare",
-        str(SOURCE_CSV_ID),
-        url=POCI,
-        name="poci-2023_08_14-23.zip",
-    )
-
-
 def get_pubmed_citations(force_process: bool = False) -> list[tuple[str, str]]:
     """Get pubmed citations."""
-    out_path = MODULE.join(
-        "zenodo",
-        METADATA_RECORD_ID,
-        METADATA_LATEST_VERSION,
-        name="pubmed_citations.tsv.gz",
-    )
+    out_path = MODULE.join(name="pubmed_citations.tsv.gz")
     if out_path.is_file() and not force_process:
         with safe_open_reader(out_path) as file:
             return list(file)  # type:ignore[arg-type]
 
     rv = []
     omid_to_pubmed = get_omid_to_pubmed()
-    with (
-        open_zip_reader(
-            ensure_poci(), inner_path="poci-2023_08_14-23.csv", delimiter=","
-        ) as reader,
-        safe_open_writer(out_path) as writer,
-    ):
-        next(reader)
-        for citation, _source in tqdm(
-            reader, unit_scale=True, unit="citation", total=CITATIONS_LENGTH
-        ):
-            left, _, right = citation.partition("-")
-            left_pmid = omid_to_pubmed.get(f"br/{left}")
-            right_pmid = omid_to_pubmed.get(f"br/{right}")
-            if left_pmid and right_pmid:
-                writer.writerow((left_pmid, right_pmid))
-                rv.append((left_pmid, right_pmid))
+
+    with safe_open_writer(out_path) as writer:
+        for path in tqdm(ensure_citation_data_csv(), desc="reading citations", unit="archive"):
+            with zipfile.ZipFile(path, mode="r") as zip_file:
+                for info in tqdm(
+                    zip_file.infolist(), leave=False, desc=f"reading {path.name}", unit="file"
+                ):
+                    if not info.filename.endswith(".csv"):
+                        continue
+                    with open_inner_zipfile(zip_file, info.filename) as file:
+                        reader = csv.reader(file)
+                        next(reader)
+                        for citation, *_ in tqdm(
+                            reader,
+                            unit_scale=True,
+                            unit="citation",
+                            leave=False,
+                            desc=f"reading {info.filename}",
+                        ):
+                            left, _, right = citation.lstrip("oci:").partition("-")
+                            left_pmid = omid_to_pubmed.get(f"br/{left}")
+                            right_pmid = omid_to_pubmed.get(f"br/{right}")
+                            if left_pmid and right_pmid:
+                                writer.writerow((left_pmid, right_pmid))
+                                rv.append((left_pmid, right_pmid))
     return rv
 
 
