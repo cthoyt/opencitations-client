@@ -1,6 +1,7 @@
 """This is a placeholder for putting the main code for your module."""
 
 import datetime
+import re
 from typing import Any, Literal
 
 import pystow
@@ -12,11 +13,19 @@ from ratelimit import limits, sleep_and_retry
 from opencitations_client.version import get_version
 
 __all__ = [
+    "Author",
     "Citation",
+    "Metadata",
+    "Publisher",
+    "Venue",
+    "get_author",
+    "get_editor",
     "get_incoming_citations",
+    "get_metadata",
     "get_outgoing_citations",
 ]
 
+META_V1 = "https://api.opencitations.net/meta/v1"
 BASE_V2 = "https://api.opencitations.net/index/v2"
 AGENT = f"python-opencitations-client v{get_version()}"
 CITATION_PREFIXES = {"doi", "pubmed", "omid"}
@@ -123,6 +132,68 @@ def _bool(s: Literal["yes", "no"]) -> bool:
 
 def _get_index_v2(part: str, *, token: str | None = None) -> requests.Response:
     return _get(f"{BASE_V2}/{part.lstrip('/')}", token=token)
+
+
+METADATA_ID_RE = re.compile(
+    r"(doi|issn|isbn|omid|openalex|pmid|pmcid):.+?(__(doi|issn|isbn|omid|openalex|pmid|pmcid):.+?)*$"
+)
+
+
+class Author(BaseModel):
+    """Represents an author in OpenCitations."""
+
+    name: str
+    references: list[Reference]
+
+
+class Venue(BaseModel):
+    """Represents a venue in OpenCitations."""
+
+    name: str
+    references: list[Reference]
+
+
+class Publisher(BaseModel):
+    """Represents a publisher in OpenCitations."""
+
+    name: str
+    references: list[Reference]
+
+
+class Metadata(BaseModel):
+    """A representation of metadata."""
+
+    references: list[Reference]
+    title: str
+    authors: list[Author]
+    pub_date: datetime.date
+    venue: Venue | None = None
+    volume: str | None = None
+    issue: str | None = None
+    page: str | None = None
+    publisher: Publisher | None = None
+    type: str
+
+
+def _process_metadata(record: dict[str, Any]) -> Metadata:
+    raise NotImplementedError
+
+
+def get_metadata(references: list[Reference]):
+    """Get documents by reference."""
+    "__".join(reference.curie for reference in references)
+
+
+def get_author() -> list[Reference]:
+    """Get documents incident to the author."""
+
+
+def get_editor() -> list[Reference]:
+    """Get documents incident to the editor."""
+
+
+def _get_meta_v1(part: str, *, token: str | None = None) -> requests.Response:
+    return _get(f"{META_V1}/{part.lstrip('/')}", token=token)
 
 
 @sleep_and_retry
