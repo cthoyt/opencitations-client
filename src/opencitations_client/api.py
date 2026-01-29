@@ -134,11 +134,6 @@ def _get_index_v2(part: str, *, token: str | None = None) -> requests.Response:
     return _get(f"{BASE_V2}/{part.lstrip('/')}", token=token)
 
 
-METADATA_ID_RE = re.compile(
-    r"(doi|issn|isbn|omid|openalex|pmid|pmcid):.+?(__(doi|issn|isbn|omid|openalex|pmid|pmcid):.+?)*$"
-)
-
-
 class Author(BaseModel):
     """Represents an author in OpenCitations."""
 
@@ -179,13 +174,21 @@ def _process_metadata(record: dict[str, Any]) -> Metadata:
     raise NotImplementedError
 
 
-ALLOWED_ARTICLE_PREFIXES = {"doi", "issn", "isbn", "omid"}
+METADATA_ID_RE = re.compile(
+    r"(doi|issn|isbn|omid|openalex|pmid|pmcid):.+?(__(doi|issn|isbn|omid|openalex|pmid|pmcid):.+?)*$"
+)
+
+
+ALLOWED_ARTICLE_PREFIXES = {"doi", "issn", "isbn", "omid", "pmid", "pmcid"}
 
 
 def get_metadata(references: list[Reference], *, token: str | None = None) -> list[Metadata]:
     """Get documents by reference.
 
     :param references: A list of references to articles, using
+    :param token: The token to use for authentication.
+        Loaded via :func:`pystow.get_config` if not given explicitly
+    :return: A list of articles for the references
 
     .. seealso:: https://api.opencitations.net/meta/v1#/metadata/{ids}
     """
@@ -204,7 +207,9 @@ def get_metadata(references: list[Reference], *, token: str | None = None) -> li
 def get_author(reference: Reference, *, token: str | None = None) -> list[Metadata]:
     """Get documents incident to the author.
 
-    :reference: A reference for an author, using ``orcid`` or ``omid`` as a prefix
+    :param reference: A reference for an author, using ``orcid`` or ``omid`` as a prefix
+    :param token: The token to use for authentication.
+        Loaded via :func:`pystow.get_config` if not given explicitly
     :return: A list of articles associated with the author
 
     .. seealso:: https://api.opencitations.net/meta/v1#/author/{id}
@@ -218,7 +223,9 @@ def get_author(reference: Reference, *, token: str | None = None) -> list[Metada
 def get_editor(reference: Reference, *, token: str | None = None) -> list[Metadata]:
     """Get documents incident to the editor.
 
-    :reference: A reference for an editor, using ``orcid`` or ``omid`` as a prefix
+    :param reference: A reference for an editor, using ``orcid`` or ``omid`` as a prefix
+    :param token: The token to use for authentication.
+        Loaded via :func:`pystow.get_config` if not given explicitly
     :return: A list of articles associated with the editor
 
     .. seealso:: https://api.opencitations.net/meta/v1#/editor/{id}
