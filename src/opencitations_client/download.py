@@ -254,7 +254,7 @@ def get_pubmed_citations(force_process: bool = False) -> list[tuple[str, str]]:
     ):
         next(reader)
         for citation, _source in tqdm(reader):
-            left, _, right = citation.split("-")
+            left, _, right = citation.partition("-")
             left_pmid = omid_to_pubmed.get(f"br/{left}")
             right_pmid = omid_to_pubmed.get(f"br/{right}")
             if left_pmid and right_pmid:
