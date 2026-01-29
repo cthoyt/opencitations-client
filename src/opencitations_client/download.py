@@ -1,14 +1,18 @@
 """Download data in bulk."""
 
+import contextlib
 import csv
+import io
+import tarfile
 import zipfile
-from collections.abc import Iterable
+from collections.abc import Generator, Iterable
 from pathlib import Path
+from typing import TextIO
 
 import figshare_client
 import pystow
 import zenodo_client
-from pystow.utils import open_inner_zipfile, safe_open, safe_open_reader, safe_open_writer
+from pystow.utils import open_inner_zipfile, open_zip_reader, safe_open_reader, safe_open_writer
 from tqdm import tqdm
 
 from .api import Citation, Metadata, _process, _process_metadata
@@ -25,12 +29,15 @@ __all__ = [
     "ensure_provenance_rdf",
     "ensure_source_csv",
     "ensure_source_nt",
+    "get_pubmed_citations",
 ]
 
 METADATA_RECORD_ID = "15625650"
 METADATA_LATEST_VERSION = "13"
 METADATA_NAME = "output_csv_2026_01_14.tar.gz"
 METADATA_LENGTH = 129_436_832
+
+MODULE = pystow.module("opencitations")
 
 
 def ensure_metadata_csv() -> Path:
@@ -58,11 +65,12 @@ METADATA_COLUMNS = [
 
 def iter_metadata() -> Iterable[Metadata]:
     """Iterate over all documents."""
-    with safe_open(ensure_metadata_csv()) as file:
-        next(file)  # throw away header, which has a bunch of junk
-        reader = csv.DictReader(file, fieldnames=METADATA_COLUMNS)
-        for record in tqdm(reader, total=METADATA_LENGTH, unit="document", unit_scale=True):
-            yield _process_metadata(record)
+    path = ensure_metadata_csv()
+    with _iterate_metadata_files(path) as files:
+        for _, file in files:
+            reader = csv.DictReader(file, fieldnames=METADATA_COLUMNS)
+            for record in tqdm(reader, total=METADATA_LENGTH, unit="document", unit_scale=True):
+                yield _process_metadata(record)
 
 
 def iter_omid_to_doi() -> Iterable[tuple[str, str]]:
@@ -76,19 +84,48 @@ def iter_omid_to_pubmed() -> Iterable[tuple[str, str]]:
 
 
 def _iter_omid_to_external_identifier(prefix: str) -> Iterable[tuple[str, str]]:
-    with safe_open(ensure_metadata_csv()) as file:
-        next(file)  # throw away header, which has a bunch of junk
-        for line in tqdm(file, total=METADATA_LENGTH, unit="document", unit_scale=True):
-            curies, _, _ = line.partition(",")
-            references = {}
-            for curie in curies.split():
-                prefix, _, identifier = curie.partition(":")
-                if not identifier:
+    if False:
+        path = ensure_metadata_csv()
+    else:
+        path = Path.home().joinpath(
+            ".data", "zenodo", METADATA_RECORD_ID, METADATA_LATEST_VERSION, METADATA_NAME
+        )
+    with _iterate_metadata_files(path) as files:
+        for member, file in files:
+            next(file)  # throw away header, which has a bunch of junk
+            for line in file:
+                curies, _, _ = line.partition(",")
+                references = {}
+                for curie in curies.split():
+                    _prefix, _, identifier = curie.partition(":")
+                    if not identifier:
+                        continue
+                    references[_prefix] = identifier
+                try:
+                    omid = references["omid"]
+                except KeyError:
+                    tqdm.write(f"[{member.name}] bad line: {line}")
                     continue
-                references[prefix] = identifier
-            omid = references["omid"]
-            if external_identifier := references.get(prefix):
-                yield omid, external_identifier
+                if external_identifier := references.get(prefix):
+                    yield omid, external_identifier
+
+
+def _iterate_tar_info(tar: tarfile.TarFile) -> Iterable[tuple[tarfile.TarInfo, TextIO]]:
+    for member in tqdm(tar.getmembers(), unit="file", unit_scale=True, desc="extracting metadata"):
+        if not member.name.endswith(".csv"):
+            continue
+        f = tar.extractfile(member)
+        if f is None:
+            continue
+        yield member, io.TextIOWrapper(f, encoding="utf-8")
+
+
+@contextlib.contextmanager
+def _iterate_metadata_files(
+    path: Path,
+) -> Generator[Iterable[tuple[tarfile.TarInfo, TextIO]], None, None]:
+    with tarfile.open(path, "r") as tar:
+        yield _iterate_tar_info(tar)
 
 
 def get_omid_to_pubmed(force_process: bool = False) -> dict[str, str]:
@@ -174,18 +211,59 @@ def ensure_provenance_data_nt() -> list[Path]:
     return list(figshare_client.ensure_files(record_id))
 
 
+SOURCE_CSV_ID = 28677293  # see https://doi.org/10.6084/m9.figshare.28677293
+
+
 def ensure_source_csv() -> list[Path]:
     """Ensure the source data in CSV format (25.7 GB zipped, 426 GB uncompressed)."""
-    record_id = 28677293  # see https://doi.org/10.6084/m9.figshare.28677293
-    return list(figshare_client.ensure_files(record_id))
+    return list(figshare_client.ensure_files(SOURCE_CSV_ID))
+
+
+# This is a file of citations that has OIDs but has been pre-subset
+# for ones corresponding to Pubmed, but without actually giving the pmids
+POCI = "https://figshare.com/ndownloader/files/53266736"
+
+
+def ensure_poci() -> Path:
+    """Enable the POCI data."""
+    return pystow.ensure(
+        "figshare",
+        str(SOURCE_CSV_ID),
+        url=POCI,
+        name="poci-2023_08_14-23.zip",
+    )
+
+
+def get_pubmed_citations(force_process: bool = False) -> list[tuple[str, str]]:
+    """Get pubmed citations."""
+    out_path = MODULE.join(
+        "zenodo",
+        METADATA_RECORD_ID,
+        METADATA_LATEST_VERSION,
+        name="pubmed_citations.tsv.gz",
+    )
+    if out_path.is_file() and not force_process:
+        with safe_open_reader(out_path) as file:
+            return list(file)  # type:ignore[arg-type]
+
+    rv = []
+    omid_to_pubmed = get_omid_to_pubmed()
+    with (
+        open_zip_reader(ensure_poci(), inner_path="poci-2023_08_14-23.csv", delimiter=",") as reader,
+        safe_open_writer(out_path) as writer,
+    ):
+        next(reader)
+        for citation, _source in tqdm(reader):
+            left, _, right = citation.split("-")
+            left_pmid = omid_to_pubmed.get(f"br/{left}")
+            right_pmid = omid_to_pubmed.get(f"br/{right}")
+            if left_pmid and right_pmid:
+                writer.writerow((left_pmid, right_pmid))
+                rv.append((left_pmid, right_pmid))
+    return rv
 
 
 def ensure_source_nt() -> list[Path]:
     """Ensure the source data in NT format (23 GB zipped, 104 GB uncompressed)."""
     record_id = 24427051  # see https://doi.org/10.6084/m9.figshare.24427051
     return list(figshare_client.ensure_files(record_id))
-
-
-# This is a file of citations that has OIDs but has been pre-subset
-# for ones corresponding to Pubmed, but without actually giving the pmids
-POCI = "https://figshare.com/ndownloader/files/53266736"
