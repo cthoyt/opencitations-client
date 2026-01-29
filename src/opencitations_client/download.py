@@ -6,6 +6,7 @@ from collections.abc import Iterable
 from pathlib import Path
 
 import figshare_client
+import zenodo_client
 from pystow.utils import open_inner_zipfile
 
 from .api import Citation, _process
@@ -25,19 +26,34 @@ __all__ = [
 ]
 
 
-def ensure_metadata_csv() -> list[Path]:
-    """Ensure the metadata in CSV format (12 GB compressed, 49 GB uncompressed)."""
-    raise NotImplementedError
+def ensure_metadata_csv() -> Path:
+    """Ensure the metadata in CSV format (12 GB compressed, 49 GB uncompressed).
+
+    .. seealso:: https://zenodo.org/records/15625651
+    """
+    return zenodo_client.download_zenodo("15625651", name="oc_meta_data_2025-06-06.tar.gz")
 
 
 def ensure_metadata_kubernetes() -> list[Path]:
-    """Ensure the metadata in Kubernetes format (39 GB compressed, 187 GB uncompressed)."""
-    raise NotImplementedError
+    """Ensure the metadata in Kubernetes format (39 GB compressed, 187 GB uncompressed).
+
+    .. seealso:: https://doi.org/10.5281/zenodo.15855111
+    """
+    raise NotImplementedError(
+        "waiting on https://github.com/cthoyt/zenodo-client/pull/53 to implement "
+        '`return zenodo_client.ensure_files("15855111")`'
+    )
 
 
 def ensure_metadata_rdf() -> list[Path]:
-    """Ensure metadata/provenance data in RDF format (46.5 GB compressed, 66 GB uncompressed)."""
-    raise NotImplementedError
+    """Ensure metadata/provenance data in RDF format (46.5 GB compressed, 66 GB uncompressed).
+
+    .. seealso:: https://doi.org/10.5281/zenodo.17483301
+    """
+    raise NotImplementedError(
+        "waiting on https://github.com/cthoyt/zenodo-client/pull/53 to implement "
+        '`zenodo_client.ensure_files("15855111")`'
+    )
 
 
 def ensure_provenance_rdf() -> list[Path]:
