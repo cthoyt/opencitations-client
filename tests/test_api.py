@@ -6,8 +6,8 @@ import unittest
 from curies import Reference
 
 from opencitations_client.api import (
-    Author,
     Metadata,
+    Person,
     Publisher,
     Venue,
     _process_metadata,
@@ -74,49 +74,49 @@ class TestVersion(unittest.TestCase):
             ],
             title="Identifying And Correcting Invalid Citations Due To DOI Errors In Crossref Data",
             authors=[
-                Author(
+                Person(
                     name="Cioffi, Alessia",
                     references=[
                         Reference.from_curie("orcid:0000-0002-9812-4065"),
                         Reference.from_curie("omid:ra/061206532419"),
                     ],
                 ),
-                Author(
+                Person(
                     name="Coppini, Sara",
                     references=[
                         Reference.from_curie("orcid:0000-0002-6279-3830"),
                         Reference.from_curie("omid:ra/061206532420"),
                     ],
                 ),
-                Author(
+                Person(
                     name="Massari, Arcangelo",
                     references=[
                         Reference.from_curie("orcid:0000-0002-8420-0696"),
                         Reference.from_curie("omid:ra/06250110138"),
                     ],
                 ),
-                Author(
+                Person(
                     name="Moretti, Arianna",
                     references=[
                         Reference.from_curie("orcid:0000-0001-5486-7070"),
                         Reference.from_curie("omid:ra/061206532421"),
                     ],
                 ),
-                Author(
+                Person(
                     name="Peroni, Silvio",
                     references=[
                         Reference.from_curie("orcid:0000-0003-0530-4305"),
                         Reference.from_curie("omid:ra/0614010840729"),
                     ],
                 ),
-                Author(
+                Person(
                     name="Santini, Cristian",
                     references=[
                         Reference.from_curie("orcid:0000-0001-7363-6737"),
                         Reference.from_curie("omid:ra/067099715"),
                     ],
                 ),
-                Author(
+                Person(
                     name="Shahidzadeh, Nooshin",
                     references=[
                         Reference.from_curie("orcid:0000-0003-4114-074X"),
@@ -146,4 +146,7 @@ class TestVersion(unittest.TestCase):
                 ],
             ),
         )
-        self.assertEqual(expected, _process_metadata(data))
+        self.assertEqual(
+            expected.model_dump(),
+            _process_metadata(data).model_dump(),
+        )

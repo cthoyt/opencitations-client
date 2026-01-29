@@ -1,8 +1,10 @@
 """This is a placeholder for putting the main code for your module."""
 
+from __future__ import annotations
+
 import datetime
 import re
-from typing import Any, Literal
+from typing import Any, Literal, TypeVar
 
 import pystow
 import requests
@@ -13,9 +15,9 @@ from ratelimit import limits, sleep_and_retry
 from opencitations_client.version import get_version
 
 __all__ = [
-    "Author",
     "Citation",
     "Metadata",
+    "Person",
     "Publisher",
     "Venue",
     "get_author",
@@ -29,6 +31,8 @@ META_V1 = "https://api.opencitations.net/meta/v1"
 BASE_V2 = "https://api.opencitations.net/index/v2"
 AGENT = f"python-opencitations-client v{get_version()}"
 CITATION_PREFIXES = {"doi", "pubmed", "omid"}
+
+X = TypeVar("X", bound=BaseModel)
 
 
 class Citation(BaseModel):
@@ -121,6 +125,27 @@ def _process_curies(s: str) -> list[Reference]:
     return [Reference.from_curie(curie) for curie in s.split(" ")]
 
 
+def _process_metadata(record: dict[str, Any]) -> Metadata:
+    record["references"] = _process_curies(record.pop("id"))
+    record["authors"] = [_process_tagged(x, Person) for x in record.pop("author").split(";")]
+    if venue_raw := record.pop("venue"):
+        record["venue"] = _process_tagged(venue_raw, Venue)
+    if publisher_raw := record.pop("publisher"):
+        record["publisher"] = _process_tagged(publisher_raw, Publisher)
+    if editor_raw := record.pop("editor"):
+        record["editor"] = _process_tagged(editor_raw, Person)
+    return Metadata.model_validate(record)
+
+
+def _process_tagged(part: str, cls: type[X]) -> X:
+    part = part.strip()
+    if not part.endswith("]"):
+        raise ValueError
+    name, _, rest = part.partition("[")
+    references = _process_curies(rest.rstrip("]"))
+    return cls(name=name.strip(), references=references)
+
+
 def _bool(s: Literal["yes", "no"]) -> bool:
     if s == "no":
         return False
@@ -134,7 +159,7 @@ def _get_index_v2(part: str, *, token: str | None = None) -> requests.Response:
     return _get(f"{BASE_V2}/{part.lstrip('/')}", token=token)
 
 
-class Author(BaseModel):
+class Person(BaseModel):
     """Represents an author in OpenCitations."""
 
     name: str
@@ -160,7 +185,7 @@ class Metadata(BaseModel):
 
     references: list[Reference]
     title: str
-    authors: list[Author]
+    authors: list[Person]
     pub_date: datetime.date
     venue: Venue | None = None
     volume: str | None = None
@@ -169,15 +194,23 @@ class Metadata(BaseModel):
     publisher: Publisher | None = None
     type: str
 
-
-def _process_metadata(record: dict[str, Any]) -> Metadata:
-    raise NotImplementedError
+    @field_validator("pub_date", mode="before")
+    @classmethod
+    def parse_dates(cls, v: Any) -> Any:
+        """Parse the creation field."""
+        if isinstance(v, str):
+            if len(v) == 4:  # YYYY
+                return datetime.date.fromisoformat(v + "-01-01")
+            if len(v) == 7:  # YYYY-MM
+                return datetime.date.fromisoformat(v + "-01")
+            if len(v) == 10:  # YYYY-MM-DD
+                return datetime.date.fromisoformat(v)
+        return v
 
 
 METADATA_ID_RE = re.compile(
     r"(doi|issn|isbn|omid|openalex|pmid|pmcid):.+?(__(doi|issn|isbn|omid|openalex|pmid|pmcid):.+?)*$"
 )
-
 
 ALLOWED_ARTICLE_PREFIXES = {"doi", "issn", "isbn", "omid", "pmid", "pmcid"}
 
