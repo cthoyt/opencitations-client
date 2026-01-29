@@ -1,6 +1,17 @@
 """Access and download data from OpenCitations."""
 
-from .api import Citation, get_incoming_citations, get_outgoing_citations
+from .api import (
+    Citation,
+    Metadata,
+    Person,
+    Publisher,
+    Venue,
+    get_articles,
+    get_articles_for_author,
+    get_articles_for_editor,
+    get_incoming_citations,
+    get_outgoing_citations,
+)
 from .download import (
     ensure_citation_data_csv,
     ensure_citation_data_nt,
@@ -17,6 +28,10 @@ from .download import (
 
 __all__ = [
     "Citation",
+    "Metadata",
+    "Person",
+    "Publisher",
+    "Venue",
     "ensure_citation_data_csv",
     "ensure_citation_data_nt",
     "ensure_citation_data_scholix",
@@ -28,6 +43,9 @@ __all__ = [
     "ensure_provenance_rdf",
     "ensure_source_csv",
     "ensure_source_nt",
+    "get_articles",
+    "get_articles_for_author",
+    "get_articles_for_editor",
     "get_incoming_citations",
     "get_outgoing_citations",
 ]
