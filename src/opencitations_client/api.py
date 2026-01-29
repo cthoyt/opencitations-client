@@ -179,17 +179,64 @@ def _process_metadata(record: dict[str, Any]) -> Metadata:
     raise NotImplementedError
 
 
-def get_metadata(references: list[Reference]):
-    """Get documents by reference."""
-    "__".join(reference.curie for reference in references)
+ALLOWED_ARTICLE_PREFIXES = {"doi", "issn", "isbn", "omid"}
 
 
-def get_author() -> list[Reference]:
-    """Get documents incident to the author."""
+def get_metadata(references: list[Reference], *, token: str | None = None) -> list[Metadata]:
+    """Get documents by reference.
+
+    :param references: A list of references to articles, using
+
+    .. seealso:: https://api.opencitations.net/meta/v1#/metadata/{ids}
+    """
+    invalid_references = [
+        reference for reference in references if reference.prefix not in ALLOWED_ARTICLE_PREFIXES
+    ]
+    if invalid_references:
+        raise ValueError(f"invalid references: {invalid_references}")
+
+    value = "__".join(reference.curie for reference in references)
+    res = _get_meta_v1(f"/metadata/{value}", token=token)
+    res.raise_for_status()
+    return [_process_metadata(record) for record in res.json()]
 
 
-def get_editor() -> list[Reference]:
-    """Get documents incident to the editor."""
+def get_author(reference: Reference, *, token: str | None = None) -> list[Metadata]:
+    """Get documents incident to the author.
+
+    :reference: A reference for an author, using ``orcid`` or ``omid`` as a prefix
+    :return: A list of articles associated with the author
+
+    .. seealso:: https://api.opencitations.net/meta/v1#/author/{id}
+    """
+    _raise_for_invalid_person(reference)
+    res = _get_meta_v1(f"/author/{reference.curie}", token=token)
+    res.raise_for_status()
+    return [_process_metadata(record) for record in res.json()]
+
+
+def get_editor(reference: Reference, *, token: str | None = None) -> list[Metadata]:
+    """Get documents incident to the editor.
+
+    :reference: A reference for an editor, using ``orcid`` or ``omid`` as a prefix
+    :return: A list of articles associated with the editor
+
+    .. seealso:: https://api.opencitations.net/meta/v1#/editor/{id}
+    """
+    _raise_for_invalid_person(reference)
+    res = _get_meta_v1(f"/editor/{reference.curie}", token=token)
+    res.raise_for_status()
+    return [_process_metadata(record) for record in res.json()]
+
+
+def _raise_for_invalid_person(reference: Reference) -> None:
+    if reference.prefix == "omid":
+        if not reference.identifier.startswith("ra/"):
+            raise ValueError
+    elif reference.prefix == "orcid":
+        pass
+    else:
+        raise ValueError
 
 
 def _get_meta_v1(part: str, *, token: str | None = None) -> requests.Response:
