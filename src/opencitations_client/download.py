@@ -12,7 +12,11 @@ from typing import TextIO
 import figshare_client
 import pystow
 import zenodo_client
-from pystow.utils import open_inner_zipfile, safe_open_reader, safe_open_writer, write_pickle_gz, safe_open
+from pystow.utils import (
+    open_inner_zipfile,
+    safe_open_reader,
+    safe_open_writer,
+)
 from tqdm import tqdm
 
 from .api import Citation, Metadata, _process, _process_metadata
@@ -241,11 +245,13 @@ def iter_pubmed_citations(*, force_process: bool = False) -> Iterable[tuple[str,
     return _get_external_citations("pmid", force_process=force_process)
 
 
-def _get_external_citations(prefix: str, *, force_process: bool = False) -> Iterable[tuple[str, str]]:
+def _get_external_citations(
+    prefix: str, *, force_process: bool = False
+) -> Iterable[tuple[str, str]]:
     out_path = MODULE.join(name=f"{prefix}_citations.tsv.gz")
     if out_path.is_file() and not force_process:
-        with safe_open_reader(out_path) as file:
-            yield from file  # type:ignore[arg-type]
+        with safe_open_reader(out_path) as reader:
+            yield from reader
     else:
         omid_to_external = _get_omid_to_external(prefix, force_process=force_process)
         with safe_open_writer(out_path) as writer:
