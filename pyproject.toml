@@ -51,7 +51,7 @@ license-files = [
 requires-python = ">=3.10"
 dependencies = [
     "curies",
-    "pystow>=0.7.18",
+    "pystow>=0.7.19",
     "pydantic",
     "requests",
     "ratelimit",

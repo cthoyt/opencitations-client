@@ -12,7 +12,11 @@ from typing import TextIO
 import figshare_client
 import pystow
 import zenodo_client
-from pystow.utils import open_inner_zipfile, safe_open_reader, safe_open_writer
+from pystow.utils import (
+    open_inner_zipfile,
+    safe_open_reader,
+    safe_open_writer,
+)
 from tqdm import tqdm
 
 from .api import Citation, Metadata, _process, _process_metadata
@@ -30,6 +34,7 @@ __all__ = [
     "ensure_source_csv",
     "ensure_source_nt",
     "get_pubmed_citations",
+    "iter_pubmed_citations",
 ]
 
 METADATA_RECORD_ID = "15625650"
@@ -118,6 +123,7 @@ def _iter_omid_to_external_identifier(prefix: str) -> Iterable[tuple[str, str]]:
 
 
 def _iterate_tar_info(tar: tarfile.TarFile) -> Iterable[tuple[tarfile.TarInfo, TextIO]]:
+    # TODO replace with pystow
     for member in tqdm(tar.getmembers(), unit="file", unit_scale=True, desc="extracting metadata"):
         if not member.name.endswith(".csv"):
             continue
@@ -137,18 +143,23 @@ def _iterate_metadata_files(
 
 def get_omid_to_pubmed(force_process: bool = False) -> dict[str, str]:
     """Get a dictionary from OMIDs to PubMed identifiers."""
+    return _get_omid_to_external("pmid", force_process=force_process)
+
+
+def _get_omid_to_external(prefix: str, *, force_process: bool = False) -> dict[str, str]:
+    """Get a dictionary from OMIDs to PubMed identifiers."""
     path = pystow.join(
-        "zenodo", METADATA_RECORD_ID, METADATA_LATEST_VERSION, name="omid_to_pubmed.tsv.gz"
+        "zenodo", METADATA_RECORD_ID, METADATA_LATEST_VERSION, name=f"omid_to_{prefix}.tsv.gz"
     )
     if path.is_file() and not force_process:
         with safe_open_reader(path) as file:
             return dict(file)
     rv = {}
     with safe_open_writer(path) as writer:
-        writer.writerow(("omid", "pubmed"))
-        for omid, pmid in iter_omid_to_pubmed():
-            writer.writerow((omid, pmid))
-            rv[omid] = pmid
+        writer.writerow(("omid", prefix))
+        for omid_id, external_id in _iter_omid_to_external_identifier(prefix):
+            writer.writerow((omid_id, external_id))
+            rv[omid_id] = external_id
     return rv
 
 
@@ -224,41 +235,49 @@ def ensure_source_csv() -> list[Path]:
     return list(figshare_client.ensure_files(SOURCE_CSV_ID))
 
 
-def get_pubmed_citations(force_process: bool = False) -> list[tuple[str, str]]:
-    """Get pubmed citations."""
-    out_path = MODULE.join(name="pubmed_citations.tsv.gz")
+def get_pubmed_citations(*, force_process: bool = False) -> list[tuple[str, str]]:
+    """Get PubMed-PubMed citations."""
+    return list(_get_external_citations("pmid", force_process=force_process))
+
+
+def iter_pubmed_citations(*, force_process: bool = False) -> Iterable[tuple[str, str]]:
+    """Get PubMed-PubMed citations."""
+    return _get_external_citations("pmid", force_process=force_process)
+
+
+def _get_external_citations(
+    prefix: str, *, force_process: bool = False
+) -> Iterable[tuple[str, str]]:
+    out_path = MODULE.join(name=f"{prefix}_citations.tsv.gz")
     if out_path.is_file() and not force_process:
-        with safe_open_reader(out_path) as file:
-            return list(file)  # type:ignore[arg-type]
-
-    rv = []
-    omid_to_pubmed = get_omid_to_pubmed()
-
-    with safe_open_writer(out_path) as writer:
-        for path in tqdm(ensure_citation_data_csv(), desc="reading citations", unit="archive"):
-            with zipfile.ZipFile(path, mode="r") as zip_file:
-                for info in tqdm(
-                    zip_file.infolist(), leave=False, desc=f"reading {path.name}", unit="file"
-                ):
-                    if not info.filename.endswith(".csv"):
-                        continue
-                    with open_inner_zipfile(zip_file, info.filename) as file:
-                        reader = csv.reader(file)
-                        next(reader)
-                        for citation, *_ in tqdm(
-                            reader,
-                            unit_scale=True,
-                            unit="citation",
-                            leave=False,
-                            desc=f"reading {info.filename}",
-                        ):
-                            left, _, right = citation.lstrip("oci:").partition("-")
-                            left_pmid = omid_to_pubmed.get(f"br/{left}")
-                            right_pmid = omid_to_pubmed.get(f"br/{right}")
-                            if left_pmid and right_pmid:
-                                writer.writerow((left_pmid, right_pmid))
-                                rv.append((left_pmid, right_pmid))
-    return rv
+        with safe_open_reader(out_path) as reader:
+            yield from reader
+    else:
+        omid_to_external = _get_omid_to_external(prefix, force_process=force_process)
+        with safe_open_writer(out_path) as writer:
+            for path in tqdm(ensure_citation_data_csv(), desc="reading citations", unit="archive"):
+                with zipfile.ZipFile(path, mode="r") as zip_file:
+                    for info in tqdm(
+                        zip_file.infolist(), leave=False, desc=f"reading {path.name}", unit="file"
+                    ):
+                        if not info.filename.endswith(".csv"):
+                            continue
+                        with open_inner_zipfile(zip_file, info.filename) as file:
+                            reader = csv.reader(file)
+                            next(reader)
+                            for citation, *_ in tqdm(
+                                reader,
+                                unit_scale=True,
+                                unit="citation",
+                                leave=False,
+                                desc=f"reading {info.filename}",
+                            ):
+                                left, _, right = citation.lstrip("oci:").partition("-")
+                                source_external_id = omid_to_external.get(f"br/{left}")
+                                target_external_id = omid_to_external.get(f"br/{right}")
+                                if source_external_id and target_external_id:
+                                    writer.writerow((source_external_id, target_external_id))
+                                    yield source_external_id, target_external_id
 
 
 def ensure_source_nt() -> list[Path]:
