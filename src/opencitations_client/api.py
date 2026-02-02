@@ -226,6 +226,22 @@ class Metadata(BaseModel):
                 return datetime.date.fromisoformat(v)
         return v
 
+    @property
+    def omid(self) -> str:
+        """Get the OMID for the document."""
+        for r in self.references:
+            if r.prefix == "omid":
+                return r.identifier
+        raise ValueError(f"invalid omid: {self.omid}")
+
+    @property
+    def pubmed(self) -> str | None:
+        """Get the PubMed identifier for the document, if it exists."""
+        for r in self.references:
+            if r.prefix == "pmid":
+                return r.identifier
+        return None
+
 
 METADATA_ID_RE = re.compile(
     r"(doi|issn|isbn|omid|openalex|pmid|pmcid):.+?(__(doi|issn|isbn|omid|openalex|pmid|pmcid):.+?)*$"
