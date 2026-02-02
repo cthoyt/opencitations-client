@@ -1,19 +1,11 @@
 """Database operations."""
 
-import sqlite3
-from contextlib import closing
 from functools import lru_cache
 
 from curies import Reference
-from more_itertools import batched
 from pystow.graph import GraphCache, GraphCachePaths, build_graph_cache
 
-from .download import (
-    MODULE,
-    iter_metadata,
-    iter_omid_citations,
-    iter_pubmed_citations,
-)
+from .download import MODULE, iter_omid_citations, iter_pubmed_citations
 
 __all__ = [
     "get_incoming_citations",
@@ -83,34 +75,3 @@ def get_incoming_citations(reference: Reference) -> list[str]:
             raise NotImplementedError(
                 f"incoming citation lookup not implemented for prefix: {reference.prefix}"
             )
-
-
-def build_citation_cache() -> None:
-    """Build a citation cache."""
-    import pandas as pd
-
-    with sqlite3.connect(CITATION_DB) as conn:
-        with closing(conn.cursor()) as cursor:
-            cursor.execute("DROP TABLE IF EXISTS document;")
-            cursor.execute(
-                """ \
-                CREATE TABLE document
-                (
-                    omid   text not null,
-                    record text not null
-                )
-                """
-            )
-        for batch in batched(iter_metadata(), 200_000):
-            rows = []
-            for citation in batch:
-                rows.append(
-                    (
-                        citation.omid,
-                        citation.model_dump_json(
-                            exclude_none=True, exclude_unset=True, exclude_defaults=True
-                        ),
-                    )
-                )
-            df = pd.DataFrame(rows, columns=["omid", "record"])
-            df.to_sql("document", conn, if_exists="append", index=False)
