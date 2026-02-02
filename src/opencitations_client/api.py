@@ -129,11 +129,20 @@ def _process_metadata(record: dict[str, Any]) -> Metadata:
     record["references"] = _process_curies(record.pop("id"))
     record["authors"] = _process_tagged_list(record.pop("author"), Person)
     if venue_raw := record.pop("venue"):
-        record["venue"] = _process_tagged(venue_raw, Venue)
+        try:
+            record["venue"] = _process_tagged(venue_raw, Venue)
+        except curies.utils.NoCURIEDelimiterError:
+            tqdm.write(f"bad venue: {venue_raw}")
     if publisher_raw := record.pop("publisher"):
-        record["publisher"] = _process_tagged(publisher_raw, Publisher)
+        try:
+            record["publisher"] = _process_tagged_list(publisher_raw, Publisher)
+        except curies.utils.NoCURIEDelimiterError:
+            tqdm.write(f"bad publisher: {publisher_raw}")
     if editor_raw := record.pop("editor"):
-        record["editor"] = _process_tagged_list(editor_raw, Person)
+        try:
+            record["editors"] = _process_tagged_list(editor_raw, Person)
+        except curies.utils.NoCURIEDelimiterError:
+            tqdm.write(f"bad editor: {editor_raw}")
     return Metadata.model_validate(record)
 
 
@@ -192,18 +201,21 @@ class Metadata(BaseModel):
     references: list[Reference]
     title: str
     authors: list[Person]
-    pub_date: datetime.date
+    pub_date: datetime.date | None = None
     venue: Venue | None = None
     volume: str | None = None
     issue: str | None = None
     page: str | None = None
-    publisher: Publisher | None = None
+    publisher: list[Publisher] | None = None
+    editors: list[Person] | None = None
     type: str
 
     @field_validator("pub_date", mode="before")
     @classmethod
     def parse_dates(cls, v: Any) -> Any:
         """Parse the creation field."""
+        if not v:
+            return None
         if isinstance(v, str):
             if len(v) == 4:  # YYYY
                 return datetime.date.fromisoformat(v + "-01-01")
