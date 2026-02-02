@@ -47,31 +47,23 @@ def _get_doi_cache() -> GraphCache:
     return GraphCache(doi_cache_paths)
 
 
+def _get_cache(prefix: str) -> GraphCache:
+    match prefix:
+        case "pmid" | "pubmed":
+            return _get_pubmed_cache()
+        case "omid":
+            return _get_omid_cache()
+        case "doi":
+            return _get_omid_cache()
+        case _:
+            raise NotImplementedError(f"citation lookup not implemented for prefix: {prefix}")
+
+
 def get_outgoing_citations(reference: Reference) -> list[str]:
     """Get outgoing citations as a list of PubMed identifiers."""
-    match reference.prefix:
-        case "pmid" | "pubmed":
-            return _get_pubmed_cache().out_edges(reference.identifier)
-        case "omid":
-            return _get_omid_cache().out_edges(reference.identifier)
-        case "doi":
-            return _get_omid_cache().out_edges(reference.identifier)
-        case _:
-            raise NotImplementedError(
-                f"outgoing citation lookup not implemented for prefix: {reference.prefix}"
-            )
+    return _get_cache(reference.prefix).out_edges(reference.identifier)
 
 
 def get_incoming_citations(reference: Reference) -> list[str]:
     """Get incoming citations as a list of PubMed identifiers."""
-    match reference.prefix:
-        case "pmid" | "pubmed":
-            return _get_pubmed_cache().in_edges(reference.identifier)
-        case "omid":
-            return _get_omid_cache().in_edges(reference.identifier)
-        case "doi":
-            return _get_omid_cache().in_edges(reference.identifier)
-        case _:
-            raise NotImplementedError(
-                f"incoming citation lookup not implemented for prefix: {reference.prefix}"
-            )
+    return _get_cache(reference.prefix).in_edges(reference.identifier)

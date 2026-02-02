@@ -4,7 +4,7 @@ import unittest
 
 from curies import Reference
 
-from opencitations_client.db import (
+from opencitations_client.cache import (
     _get_pubmed_cache,
     get_incoming_citations,
     get_outgoing_citations,
