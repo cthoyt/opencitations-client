@@ -159,7 +159,9 @@ def _process_tagged(part: str, cls: type[X]) -> X:
     part = part.strip()
     if not part.endswith("]"):
         raise ValueError(f"no brackets were given: {part}")
-    name, _, rest = part.partition("[")
+    # partition on the _last_ one because some names have brackets
+    # in them
+    name, _, rest = part.rpartition("[")
     references = _process_curies(rest.rstrip("]"))
     return cls(name=name.strip(), references=references)
 
@@ -324,4 +326,4 @@ def _get_meta_v1(part: str, *, token: str | None = None) -> requests.Response:
 @limits(calls=180, period=60)  # the OpenCitations team told me 180 calls per minute
 def _get(url: str, *, token: str | None = None) -> requests.Response:
     token = pystow.get_config("opencitations", "token", passthrough=token, raise_on_missing=True)
-    return requests.get(url, headers={"authorization": token, "User-Agent": AGENT}, timeout=5)
+    return requests.get(url, headers={"authorization": token, "User-Agent": AGENT}, timeout=15)
