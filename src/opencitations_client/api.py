@@ -11,6 +11,7 @@ import requests
 from curies import Reference
 from pydantic import BaseModel, Field, field_validator
 from ratelimit import limits, sleep_and_retry
+from tqdm import tqdm
 
 from opencitations_client.version import get_version
 
