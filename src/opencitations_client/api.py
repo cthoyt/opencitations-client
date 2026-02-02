@@ -6,11 +6,14 @@ import datetime
 import re
 from typing import Any, Literal, TypeVar
 
+import curies
+import curies.utils
 import pystow
 import requests
 from curies import Reference
 from pydantic import BaseModel, Field, field_validator
 from ratelimit import limits, sleep_and_retry
+from tqdm import tqdm
 
 from opencitations_client.version import get_version
 
@@ -129,11 +132,20 @@ def _process_metadata(record: dict[str, Any]) -> Metadata:
     record["references"] = _process_curies(record.pop("id"))
     record["authors"] = _process_tagged_list(record.pop("author"), Person)
     if venue_raw := record.pop("venue"):
-        record["venue"] = _process_tagged(venue_raw, Venue)
+        try:
+            record["venue"] = _process_tagged(venue_raw, Venue)
+        except curies.utils.NoCURIEDelimiterError:
+            tqdm.write(f"bad venue: {venue_raw}")
     if publisher_raw := record.pop("publisher"):
-        record["publisher"] = _process_tagged(publisher_raw, Publisher)
+        try:
+            record["publisher"] = _process_tagged_list(publisher_raw, Publisher)
+        except curies.utils.NoCURIEDelimiterError:
+            tqdm.write(f"bad publisher: {publisher_raw}")
     if editor_raw := record.pop("editor"):
-        record["editor"] = _process_tagged_list(editor_raw, Person)
+        try:
+            record["editors"] = _process_tagged_list(editor_raw, Person)
+        except curies.utils.NoCURIEDelimiterError:
+            tqdm.write(f"bad editor: {editor_raw}")
     return Metadata.model_validate(record)
 
 
@@ -147,7 +159,9 @@ def _process_tagged(part: str, cls: type[X]) -> X:
     part = part.strip()
     if not part.endswith("]"):
         raise ValueError(f"no brackets were given: {part}")
-    name, _, rest = part.partition("[")
+    # partition on the _last_ one because some names have brackets
+    # in them
+    name, _, rest = part.rpartition("[")
     references = _process_curies(rest.rstrip("]"))
     return cls(name=name.strip(), references=references)
 
@@ -192,18 +206,21 @@ class Metadata(BaseModel):
     references: list[Reference]
     title: str
     authors: list[Person]
-    pub_date: datetime.date
+    pub_date: datetime.date | None = None
     venue: Venue | None = None
     volume: str | None = None
     issue: str | None = None
     page: str | None = None
-    publisher: Publisher | None = None
+    publisher: list[Publisher] | None = None
+    editors: list[Person] | None = None
     type: str
 
     @field_validator("pub_date", mode="before")
     @classmethod
     def parse_dates(cls, v: Any) -> Any:
         """Parse the creation field."""
+        if not v:
+            return None
         if isinstance(v, str):
             if len(v) == 4:  # YYYY
                 return datetime.date.fromisoformat(v + "-01-01")
@@ -212,6 +229,22 @@ class Metadata(BaseModel):
             if len(v) == 10:  # YYYY-MM-DD
                 return datetime.date.fromisoformat(v)
         return v
+
+    @property
+    def omid(self) -> str:
+        """Get the OMID for the document."""
+        for r in self.references:
+            if r.prefix == "omid":
+                return r.identifier
+        raise ValueError(f"invalid omid: {self.omid}")
+
+    @property
+    def pubmed(self) -> str | None:
+        """Get the PubMed identifier for the document, if it exists."""
+        for r in self.references:
+            if r.prefix == "pmid":
+                return r.identifier
+        return None
 
 
 METADATA_ID_RE = re.compile(
@@ -293,4 +326,4 @@ def _get_meta_v1(part: str, *, token: str | None = None) -> requests.Response:
 @limits(calls=180, period=60)  # the OpenCitations team told me 180 calls per minute
 def _get(url: str, *, token: str | None = None) -> requests.Response:
     token = pystow.get_config("opencitations", "token", passthrough=token, raise_on_missing=True)
-    return requests.get(url, headers={"authorization": token, "User-Agent": AGENT}, timeout=5)
+    return requests.get(url, headers={"authorization": token, "User-Agent": AGENT}, timeout=15)

@@ -51,12 +51,14 @@ license-files = [
 requires-python = ">=3.10"
 dependencies = [
     "curies",
-    "pystow>=0.7.18",
+    "pystow>=0.7.21",
     "pydantic",
     "requests",
     "ratelimit",
     "figshare-client>=0.0.3",
     "zenodo-client>=0.4.2",
+    "more-itertools",
+    "numpy",
 ]
 
 # see https://peps.python.org/pep-0735/ and https://docs.astral.sh/uv/concepts/dependencies/#dependency-groups
