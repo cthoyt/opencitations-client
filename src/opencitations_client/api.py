@@ -293,4 +293,4 @@ def _get_meta_v1(part: str, *, token: str | None = None) -> requests.Response:
 @limits(calls=180, period=60)  # the OpenCitations team told me 180 calls per minute
 def _get(url: str, *, token: str | None = None) -> requests.Response:
     token = pystow.get_config("opencitations", "token", passthrough=token, raise_on_missing=True)
-    return requests.get(url, headers={"authorization": token, "User-Agent": AGENT}, timeout=5)
+    return requests.get(url, headers={"authorization": token, "User-Agent": AGENT}, timeout=15)
