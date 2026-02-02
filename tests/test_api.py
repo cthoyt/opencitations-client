@@ -194,13 +194,15 @@ class TestVersion(unittest.TestCase):
             ),
             type="journal article",
             page="3593-3612",
-            publisher=Publisher(
-                name="Springer Science And Business Media Llc",
-                references=[
-                    Reference.from_curie("crossref:297"),
-                    Reference.from_curie("omid:ra/0610116006"),
-                ],
-            ),
+            publisher=[
+                Publisher(
+                    name="Springer Science And Business Media Llc",
+                    references=[
+                        Reference.from_curie("crossref:297"),
+                        Reference.from_curie("omid:ra/0610116006"),
+                    ],
+                )
+            ],
         )
         self.assertEqual(
             expected.model_dump(),
