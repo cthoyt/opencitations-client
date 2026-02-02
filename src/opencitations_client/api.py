@@ -6,6 +6,8 @@ import datetime
 import re
 from typing import Any, Literal, TypeVar
 
+import curies
+import curies.utils
 import pystow
 import requests
 from curies import Reference
