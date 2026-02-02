@@ -147,7 +147,9 @@ def _process_tagged(part: str, cls: type[X]) -> X:
     part = part.strip()
     if not part.endswith("]"):
         raise ValueError(f"no brackets were given: {part}")
-    name, _, rest = part.partition("[")
+    # partition on the _last_ one because some names have brackets
+    # in them
+    name, _, rest = part.rpartition("[")
     references = _process_curies(rest.rstrip("]"))
     return cls(name=name.strip(), references=references)
 
