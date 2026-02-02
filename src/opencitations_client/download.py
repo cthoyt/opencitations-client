@@ -1,18 +1,18 @@
 """Download data in bulk."""
 
-import contextlib
-import csv
-import io
-import tarfile
-import zipfile
-from collections.abc import Generator, Iterable
+from collections.abc import Iterable
+from functools import lru_cache
 from pathlib import Path
-from typing import TextIO
 
 import figshare_client
 import pystow
 import zenodo_client
-from pystow.utils import open_inner_zipfile, safe_open_reader, safe_open_writer
+from pystow.utils import (
+    iter_tarred_csvs,
+    iter_zipped_csvs,
+    safe_open_reader,
+    safe_open_writer,
+)
 from tqdm import tqdm
 
 from .api import Citation, Metadata, _process, _process_metadata
@@ -30,6 +30,9 @@ __all__ = [
     "ensure_source_csv",
     "ensure_source_nt",
     "get_pubmed_citations",
+    "iter_doi_citations",
+    "iter_omid_citations",
+    "iter_pubmed_citations",
 ]
 
 METADATA_RECORD_ID = "15625650"
@@ -67,22 +70,53 @@ METADATA_COLUMNS = [
 def iter_metadata() -> Iterable[Metadata]:
     """Iterate over all documents."""
     path = ensure_metadata_csv()
-    with _iterate_metadata_files(path) as files:
-        for member, file in files:
-            reader = csv.DictReader(file, fieldnames=METADATA_COLUMNS)
-            for record in tqdm(
-                reader,
-                total=METADATA_LENGTH,
-                unit="document",
-                unit_scale=True,
-                desc=f"reading {member.name}",
-            ):
-                yield _process_metadata(record)
+    for record in iter_tarred_csvs(
+        path, return_type="record", progress=True, max_line_length=100_000
+    ):
+        yield _process_metadata(record)
+
+
+def get_doi_from_omid(omid: str) -> str | None:
+    """Get a DOI for the given OMID."""
+    return get_omid_to_doi().get(omid)
+
+
+def get_omid_from_doi(doi: str) -> str | None:
+    """Get an OMID for the given DOI."""
+    return get_doi_to_omid().get(doi)
+
+
+@lru_cache(1)
+def get_doi_to_omid() -> dict[str, str]:
+    """Get a mapping from DOI to OMID."""
+    return {doi: omid for omid, doi in get_omid_to_doi().items()}
+
+
+@lru_cache(1)
+def get_omid_to_doi(*, force_process: bool = False) -> dict[str, str]:
+    """Get OMID to DOI dictionary."""
+    return _get_omid_to_external("pmid", force_process=force_process)
 
 
 def iter_omid_to_doi() -> Iterable[tuple[str, str]]:
     """Get OMID to DOI."""
     yield from _iter_omid_to_external_identifier("doi")
+
+
+def get_pubmed_from_omid(omid: str) -> str | None:
+    """Get a PubMed ID for the given OMID."""
+    return get_omid_to_pubmed().get(omid)
+
+
+def get_omid_from_pubmed(pubmed: str | int) -> str | None:
+    """Get and OMID for the given PubMed ID."""
+    return get_pubmed_to_omid().get(str(pubmed))
+
+
+@lru_cache(1)
+def get_pubmed_to_omid() -> dict[str, str]:
+    """Get a mapping from PubMed to OMID."""
+    return {pubmed: omid for omid, pubmed in get_omid_to_pubmed().items()}
 
 
 def iter_omid_to_pubmed() -> Iterable[tuple[str, str]]:
@@ -91,64 +125,42 @@ def iter_omid_to_pubmed() -> Iterable[tuple[str, str]]:
 
 
 def _iter_omid_to_external_identifier(prefix: str) -> Iterable[tuple[str, str]]:
-    if False:
-        path = ensure_metadata_csv()
-    else:
-        path = Path.home().joinpath(
-            ".data", "zenodo", METADATA_RECORD_ID, METADATA_LATEST_VERSION, METADATA_NAME
-        )
-    with _iterate_metadata_files(path) as files:
-        for member, file in files:
-            next(file)  # throw away header, which has a bunch of junk
-            for line in file:
-                curies, _, _ = line.partition(",")
-                references = {}
-                for curie in curies.split():
-                    _prefix, _, identifier = curie.partition(":")
-                    if not identifier:
-                        continue
-                    references[_prefix] = identifier
-                try:
-                    omid = references["omid"]
-                except KeyError:
-                    tqdm.write(f"[{member.name}] bad line: {line}")
-                    continue
-                if external_identifier := references.get(prefix):
-                    yield omid, external_identifier
-
-
-def _iterate_tar_info(tar: tarfile.TarFile) -> Iterable[tuple[tarfile.TarInfo, TextIO]]:
-    for member in tqdm(tar.getmembers(), unit="file", unit_scale=True, desc="extracting metadata"):
-        if not member.name.endswith(".csv"):
+    path = ensure_metadata_csv()
+    for curies, *_ in iter_tarred_csvs(path, max_line_length=100_000):
+        references = {}
+        for curie in curies.split():
+            _prefix, _, identifier = curie.partition(":")
+            if not identifier:
+                continue
+            references[_prefix] = identifier
+        try:
+            omid = references["omid"]
+        except KeyError:
+            tqdm.write(f"bad curies: {curies}")
             continue
-        f = tar.extractfile(member)
-        if f is None:
-            continue
-        yield member, io.TextIOWrapper(f, encoding="utf-8")
+        if external_identifier := references.get(prefix):
+            yield omid, external_identifier
 
 
-@contextlib.contextmanager
-def _iterate_metadata_files(
-    path: Path,
-) -> Generator[Iterable[tuple[tarfile.TarInfo, TextIO]], None, None]:
-    with tarfile.open(path, "r") as tar:
-        yield _iterate_tar_info(tar)
-
-
-def get_omid_to_pubmed(force_process: bool = False) -> dict[str, str]:
+@lru_cache(1)
+def get_omid_to_pubmed(*, force_process: bool = False) -> dict[str, str]:
     """Get a dictionary from OMIDs to PubMed identifiers."""
-    path = pystow.join(
-        "zenodo", METADATA_RECORD_ID, METADATA_LATEST_VERSION, name="omid_to_pubmed.tsv.gz"
-    )
+    return _get_omid_to_external("pmid", force_process=force_process)
+
+
+def _get_omid_to_external(prefix: str, *, force_process: bool = False) -> dict[str, str]:
+    """Get a dictionary from OMIDs to PubMed identifiers."""
+    path = MODULE.join(name=f"omid_to_{prefix}.tsv.gz")
     if path.is_file() and not force_process:
         with safe_open_reader(path) as file:
+            _header = next(file)
             return dict(file)
     rv = {}
     with safe_open_writer(path) as writer:
-        writer.writerow(("omid", "pubmed"))
-        for omid, pmid in iter_omid_to_pubmed():
-            writer.writerow((omid, pmid))
-            rv[omid] = pmid
+        writer.writerow(("omid", prefix))
+        for omid_id, external_id in _iter_omid_to_external_identifier(prefix):
+            writer.writerow((omid_id, external_id))
+            rv[omid_id] = external_id
     return rv
 
 
@@ -183,13 +195,8 @@ def ensure_citation_data_csv() -> list[Path]:
 def iterate_citations() -> Iterable[Citation]:
     """Download all files and iterate over all citations."""
     for path in ensure_citation_data_csv():
-        with zipfile.ZipFile(path, mode="r") as zip_file:
-            for info in zip_file.infolist():
-                if not info.filename.endswith(".csv"):
-                    continue
-                with open_inner_zipfile(zip_file, info.filename) as file:
-                    for record in csv.DictReader(file):
-                        yield _process(record)
+        for record in iter_zipped_csvs(path, return_type="record"):
+            yield _process(record)
 
 
 def ensure_citation_data_nt() -> list[Path]:
@@ -224,41 +231,56 @@ def ensure_source_csv() -> list[Path]:
     return list(figshare_client.ensure_files(SOURCE_CSV_ID))
 
 
-def get_pubmed_citations(force_process: bool = False) -> list[tuple[str, str]]:
-    """Get pubmed citations."""
-    out_path = MODULE.join(name="pubmed_citations.tsv.gz")
+def get_pubmed_citations(*, force_process: bool = False) -> list[tuple[str, str]]:
+    """Get PubMed-PubMed citations."""
+    return list(_get_external_citations("pmid", force_process=force_process))
+
+
+def iter_pubmed_citations(*, force_process: bool = False) -> Iterable[tuple[str, str]]:
+    """Get PubMed-PubMed citations."""
+    return _get_external_citations("pmid", force_process=force_process)
+
+
+def iter_doi_citations(*, force_process: bool = False) -> Iterable[tuple[str, str]]:
+    """Get DOI-DOI citations."""
+    return _get_external_citations("doi", force_process=force_process)
+
+
+def _get_external_citations(
+    prefix: str, *, force_process: bool = False
+) -> Iterable[tuple[str, str]]:
+    out_path = MODULE.join(name=f"{prefix}_citations.tsv.gz")
     if out_path.is_file() and not force_process:
-        with safe_open_reader(out_path) as file:
-            return list(file)  # type:ignore[arg-type]
+        with safe_open_reader(out_path) as reader:
+            yield from reader
+    else:
+        omid_to_external = _get_omid_to_external(prefix, force_process=force_process)
+        with safe_open_writer(out_path) as writer:
+            for path in tqdm(ensure_citation_data_csv(), desc="reading citations", unit="archive"):
+                for citation, *_ in iter_zipped_csvs(path, progress=True):
+                    left, _, right = citation.lstrip("oci:").partition("-")
+                    source_external_id = omid_to_external.get(f"br/{left}")
+                    target_external_id = omid_to_external.get(f"br/{right}")
+                    if source_external_id and target_external_id:
+                        writer.writerow((source_external_id, target_external_id))
+                        yield source_external_id, target_external_id
 
-    rv = []
-    omid_to_pubmed = get_omid_to_pubmed()
 
-    with safe_open_writer(out_path) as writer:
-        for path in tqdm(ensure_citation_data_csv(), desc="reading citations", unit="archive"):
-            with zipfile.ZipFile(path, mode="r") as zip_file:
-                for info in tqdm(
-                    zip_file.infolist(), leave=False, desc=f"reading {path.name}", unit="file"
-                ):
-                    if not info.filename.endswith(".csv"):
-                        continue
-                    with open_inner_zipfile(zip_file, info.filename) as file:
-                        reader = csv.reader(file)
-                        next(reader)
-                        for citation, *_ in tqdm(
-                            reader,
-                            unit_scale=True,
-                            unit="citation",
-                            leave=False,
-                            desc=f"reading {info.filename}",
-                        ):
-                            left, _, right = citation.lstrip("oci:").partition("-")
-                            left_pmid = omid_to_pubmed.get(f"br/{left}")
-                            right_pmid = omid_to_pubmed.get(f"br/{right}")
-                            if left_pmid and right_pmid:
-                                writer.writerow((left_pmid, right_pmid))
-                                rv.append((left_pmid, right_pmid))
-    return rv
+def iter_omid_citations(*, force_process: bool = False) -> Iterable[tuple[str, str]]:
+    """Iterate citations between OpenCitation identifiers."""
+    out_path = MODULE.join(name="omid_citations.tsv.gz")
+    if out_path.is_file() and not force_process:
+        with safe_open_reader(out_path) as reader:
+            yield from reader
+    else:
+        with safe_open_writer(out_path) as writer:
+            for path in tqdm(ensure_citation_data_csv(), desc="reading citations", unit="archive"):
+                for citation, *_ in iter_zipped_csvs(path, progress=True):
+                    left, _, right = citation.lstrip("oci:").partition("-")
+                    source_external_id = f"br/{left}"
+                    target_external_id = f"br/{right}"
+                    writer.writerow((source_external_id, target_external_id))
+                    yield source_external_id, target_external_id
 
 
 def ensure_source_nt() -> list[Path]:
