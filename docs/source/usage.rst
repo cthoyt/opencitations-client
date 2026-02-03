@@ -2,4 +2,4 @@
  Usage
 #######
 
-.. automodapi:: opencitations_client.api
+.. automodapi:: opencitations_client

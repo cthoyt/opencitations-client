@@ -9,11 +9,12 @@ __all__ = [
 
 @click.command()
 def main() -> None:
-    """CLI for opencitations_client."""
-    from .download import get_pubmed_citations
+    """Prepare local caches."""
+    from .cache import _get_doi_cache, _get_omid_cache, _get_pubmed_cache
 
-    edges = get_pubmed_citations(force_process=True)
-    click.echo(f"got {len(edges):,} PubMed-PubMed edges")
+    _get_omid_cache()
+    _get_pubmed_cache()
+    _get_doi_cache()
 
 
 if __name__ == "__main__":

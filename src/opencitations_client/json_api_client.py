@@ -1,4 +1,4 @@
-"""This is a placeholder for putting the main code for your module."""
+"""A client for the OpenCitations JSON API."""
 
 from __future__ import annotations
 

@@ -5,7 +5,7 @@ import unittest
 
 from curies import Reference
 
-from opencitations_client.api import (
+from opencitations_client.json_api_client import (
     get_articles,
     get_articles_for_author,
     get_incoming_citations,

@@ -1,7 +1,6 @@
 """Download data in bulk."""
 
 from collections.abc import Iterable
-from functools import lru_cache
 from pathlib import Path
 
 import figshare_client
@@ -29,7 +28,6 @@ __all__ = [
     "ensure_provenance_rdf",
     "ensure_source_csv",
     "ensure_source_nt",
-    "get_pubmed_citations",
     "iter_doi_citations",
     "iter_omid_citations",
     "iter_pubmed_citations",
@@ -61,47 +59,9 @@ def iter_metadata() -> Iterable[Work]:
         yield process_work(record)
 
 
-def get_doi_from_omid(omid: str) -> str | None:
-    """Get a DOI for the given OMID."""
-    return get_omid_to_doi().get(omid)
-
-
-def get_omid_from_doi(doi: str) -> str | None:
-    """Get an OMID for the given DOI."""
-    return get_doi_to_omid().get(doi)
-
-
-@lru_cache(1)
-def get_doi_to_omid() -> dict[str, str]:
-    """Get a mapping from DOI to OMID."""
-    return {doi: omid for omid, doi in get_omid_to_doi().items()}
-
-
-@lru_cache(1)
-def get_omid_to_doi(*, force_process: bool = False) -> dict[str, str]:
-    """Get OMID to DOI dictionary."""
-    return _get_omid_to_external("pmid", force_process=force_process)
-
-
 def iter_omid_to_doi() -> Iterable[tuple[str, str]]:
     """Get OMID to DOI."""
     yield from _iter_omid_to_external_identifier("doi")
-
-
-def get_pubmed_from_omid(omid: str) -> str | None:
-    """Get a PubMed ID for the given OMID."""
-    return get_omid_to_pubmed().get(omid)
-
-
-def get_omid_from_pubmed(pubmed: str | int) -> str | None:
-    """Get and OMID for the given PubMed ID."""
-    return get_pubmed_to_omid().get(str(pubmed))
-
-
-@lru_cache(1)
-def get_pubmed_to_omid() -> dict[str, str]:
-    """Get a mapping from PubMed to OMID."""
-    return {pubmed: omid for omid, pubmed in get_omid_to_pubmed().items()}
 
 
 def iter_omid_to_pubmed() -> Iterable[tuple[str, str]]:
@@ -125,12 +85,6 @@ def _iter_omid_to_external_identifier(prefix: str) -> Iterable[tuple[str, str]]:
             continue
         if external_identifier := references.get(prefix):
             yield omid, external_identifier
-
-
-@lru_cache(1)
-def get_omid_to_pubmed(*, force_process: bool = False) -> dict[str, str]:
-    """Get a dictionary from OMIDs to PubMed identifiers."""
-    return _get_omid_to_external("pmid", force_process=force_process)
 
 
 def _get_omid_to_external(prefix: str, *, force_process: bool = False) -> dict[str, str]:
@@ -214,11 +168,6 @@ SOURCE_CSV_ID = 28677293  # see https://doi.org/10.6084/m9.figshare.28677293
 def ensure_source_csv() -> list[Path]:
     """Ensure the source data in CSV format (25.7 GB zipped, 426 GB uncompressed)."""
     return list(figshare_client.ensure_files(SOURCE_CSV_ID))
-
-
-def get_pubmed_citations(*, force_process: bool = False) -> list[tuple[str, str]]:
-    """Get PubMed-PubMed citations."""
-    return list(_get_external_citations("pmid", force_process=force_process))
 
 
 def iter_pubmed_citations(*, force_process: bool = False) -> Iterable[tuple[str, str]]:

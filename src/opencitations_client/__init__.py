@@ -1,11 +1,14 @@
 """Access and download data from OpenCitations."""
 
-from .api import (
-    get_articles,
-    get_articles_for_author,
-    get_articles_for_editor,
-    get_incoming_citations,
-    get_outgoing_citations,
+from .client import (
+    get_doi_from_omid,
+    get_doi_to_omid,
+    get_omid_from_doi,
+    get_omid_from_pubmed,
+    get_omid_to_doi,
+    get_omid_to_pubmed,
+    get_pubmed_from_omid,
+    get_pubmed_to_omid,
 )
 from .download import (
     ensure_citation_data_csv,
@@ -19,6 +22,13 @@ from .download import (
     ensure_provenance_rdf,
     ensure_source_csv,
     ensure_source_nt,
+)
+from .json_api_client import (
+    get_articles,
+    get_articles_for_author,
+    get_articles_for_editor,
+    get_incoming_citations,
+    get_outgoing_citations,
 )
 from .models import Citation, Person, Publisher, Venue, Work
 
@@ -42,6 +52,14 @@ __all__ = [
     "get_articles",
     "get_articles_for_author",
     "get_articles_for_editor",
+    "get_doi_from_omid",
+    "get_doi_to_omid",
     "get_incoming_citations",
+    "get_omid_from_doi",
+    "get_omid_from_pubmed",
+    "get_omid_to_doi",
+    "get_omid_to_pubmed",
     "get_outgoing_citations",
+    "get_pubmed_from_omid",
+    "get_pubmed_to_omid",
 ]
