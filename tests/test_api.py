@@ -6,15 +6,11 @@ import unittest
 from curies import Reference
 
 from opencitations_client.api import (
-    Metadata,
-    Person,
-    Publisher,
-    Venue,
-    _process_metadata,
     get_articles,
     get_articles_for_author,
     get_incoming_citations,
 )
+from opencitations_client.models import Person, Publisher, Venue, Work, process_work
 from opencitations_client.version import get_version
 
 
@@ -65,7 +61,7 @@ class TestVersion(unittest.TestCase):
             "editor": "Allan, Catherine [orcid:0000-0003-2098-4759 omid:ra/069012996]; "
             "Stankey, George H. [omid:ra/061808486861]",
         }
-        self.assertEqual(_process_metadata(expected), actual[0])
+        self.assertEqual(process_work(expected), actual[0])
 
     def test_get_author(self) -> None:
         """Test getting authors."""
@@ -96,7 +92,7 @@ class TestVersion(unittest.TestCase):
             "editor": "",
         }
         # note, there are other results.
-        self.assertIn(_process_metadata(record), result)
+        self.assertIn(process_work(record), result)
 
     def test_process_metadata(self) -> None:
         """Test parsing a metadata record returned from the API."""
@@ -122,7 +118,7 @@ class TestVersion(unittest.TestCase):
             "[crossref:297 omid:ra/0610116006]",
             "editor": "",
         }
-        expected = Metadata(
+        expected = Work(
             references=[
                 Reference.from_curie("doi:10.1007/s11192-022-04367-w"),
                 Reference.from_curie("openalex:W3214893238"),
@@ -194,7 +190,7 @@ class TestVersion(unittest.TestCase):
             ),
             type="journal article",
             page="3593-3612",
-            publisher=[
+            publishers=[
                 Publisher(
                     name="Springer Science And Business Media Llc",
                     references=[
@@ -206,5 +202,5 @@ class TestVersion(unittest.TestCase):
         )
         self.assertEqual(
             expected.model_dump(),
-            _process_metadata(data).model_dump(),
+            process_work(data).model_dump(),
         )

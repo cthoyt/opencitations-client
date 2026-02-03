@@ -15,7 +15,7 @@ from pystow.utils import (
 )
 from tqdm import tqdm
 
-from .api import Citation, Metadata, _process, _process_metadata
+from .models import Citation, Work, process_citation, process_work
 
 __all__ = [
     "ensure_citation_data_csv",
@@ -52,28 +52,13 @@ def ensure_metadata_csv() -> Path:
     return zenodo_client.download_zenodo(METADATA_RECORD_ID, name=METADATA_NAME)
 
 
-METADATA_COLUMNS = [
-    "id",
-    "title",
-    "author",
-    "issue",
-    "volume",
-    "venue",
-    "page",
-    "pub_date",
-    "type",
-    "publisher",
-    "editor",
-]
-
-
-def iter_metadata() -> Iterable[Metadata]:
+def iter_metadata() -> Iterable[Work]:
     """Iterate over all documents."""
     path = ensure_metadata_csv()
     for record in iter_tarred_csvs(
         path, return_type="record", progress=True, max_line_length=100_000
     ):
-        yield _process_metadata(record)
+        yield process_work(record)
 
 
 def get_doi_from_omid(omid: str) -> str | None:
@@ -196,7 +181,7 @@ def iterate_citations() -> Iterable[Citation]:
     """Download all files and iterate over all citations."""
     for path in ensure_citation_data_csv():
         for record in iter_zipped_csvs(path, return_type="record"):
-            yield _process(record)
+            yield process_citation(record)
 
 
 def ensure_citation_data_nt() -> list[Path]:

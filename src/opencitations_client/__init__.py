@@ -1,11 +1,6 @@
 """Access and download data from OpenCitations."""
 
 from .api import (
-    Citation,
-    Metadata,
-    Person,
-    Publisher,
-    Venue,
     get_articles,
     get_articles_for_author,
     get_articles_for_editor,
@@ -25,13 +20,14 @@ from .download import (
     ensure_source_csv,
     ensure_source_nt,
 )
+from .models import Citation, Person, Publisher, Venue, Work
 
 __all__ = [
     "Citation",
-    "Metadata",
     "Person",
     "Publisher",
     "Venue",
+    "Work",
     "ensure_citation_data_csv",
     "ensure_citation_data_nt",
     "ensure_citation_data_scholix",
