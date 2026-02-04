@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 from typing import Literal, TypeAlias, overload
 
 import pystow
@@ -29,6 +30,7 @@ CITATION_PREFIXES = {"doi", "pubmed", "omid"}
 CitationReturnType: TypeAlias = Literal["citation", "reference", "str"]
 
 
+# docstr-coverage:excused `overload`
 @overload
 def get_outgoing_citations(
     reference: str | Reference,
@@ -38,6 +40,7 @@ def get_outgoing_citations(
 ) -> list[str]: ...
 
 
+# docstr-coverage:excused `overload`
 @overload
 def get_outgoing_citations(
     reference: str | Reference,
@@ -47,6 +50,7 @@ def get_outgoing_citations(
 ) -> list[Reference]: ...
 
 
+# docstr-coverage:excused `overload`
 @overload
 def get_outgoing_citations(
     reference: str | Reference,
@@ -75,11 +79,12 @@ def get_outgoing_citations(
 
         https://api.opencitations.net/index/v2#/references/{id}
     """
-    res = _get_index_v2(f"/references/{_handle_input(reference)}", token=token)
+    reference = _handle_input(reference)
+    res = _get_index_v2(f"/references/{reference.curie}", token=token)
     res.raise_for_status()
-    citations = [process_citation(record) for record in res.json()]
+    citations: Iterator[Citation] = (process_citation(record) for record in res.json())
     if return_type == "citation":
-        return citations
+        return list(citations)
     references = (
         incoming_reference
         for citation in citations
@@ -87,10 +92,10 @@ def get_outgoing_citations(
     )
     if return_type == "reference":
         return list(references)
-
     return [r.identifier for r in references]
 
 
+# docstr-coverage:excused `overload`
 @overload
 def get_incoming_citations(
     reference: str | Reference,
@@ -100,6 +105,7 @@ def get_incoming_citations(
 ) -> list[str]: ...
 
 
+# docstr-coverage:excused `overload`
 @overload
 def get_incoming_citations(
     reference: str | Reference,
@@ -109,6 +115,7 @@ def get_incoming_citations(
 ) -> list[Reference]: ...
 
 
+# docstr-coverage:excused `overload`
 @overload
 def get_incoming_citations(
     reference: str | Reference,
@@ -137,7 +144,8 @@ def get_incoming_citations(
 
         https://api.opencitations.net/index/v2#/citations/{id}
     """
-    res = _get_index_v2(f"/citations/{_handle_input(reference)}", token=token)
+    reference = _handle_input(reference)
+    res = _get_index_v2(f"/citations/{reference.curie}", token=token)
     res.raise_for_status()
     citations = [process_citation(record) for record in res.json()]
     if return_type == "citation":
@@ -152,23 +160,22 @@ def get_incoming_citations(
     return [r.identifier for r in references]
 
 
-def _get_r(references: list[Reference], prefix) -> Reference | None:
+def _get_r(references: list[Reference], prefix: str) -> Reference | None:
     for reference in references:
         if reference.prefix == prefix:
             return reference
     return None
 
 
-def _handle_input(reference: str | Reference) -> str:
+def _handle_input(reference: str | Reference) -> Reference:
     if isinstance(reference, str):
         reference = Reference.from_curie(reference)
     if reference.prefix not in CITATION_PREFIXES:
         raise ValueError(f"invalid prefix: {reference.prefix}, use one of {CITATION_PREFIXES}")
     if reference.prefix == "pubmed":
         # put it in the internal representation, which is non-standard
-        return f"pmid:{reference.identifier}"
-    else:
-        return reference.curie
+        return Reference(prefix="pmid", identifier=reference.identifier)
+    return reference
 
 
 def _get_index_v2(part: str, *, token: str | None = None) -> requests.Response:

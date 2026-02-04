@@ -13,6 +13,10 @@ from opencitations_client.json_api_client import (
 from opencitations_client.models import Person, Publisher, Venue, Work, process_work
 from opencitations_client.version import get_version
 
+bioregistry_reference = Reference.from_curie("doi:10.1038/s41597-022-01807-3")
+# this one cites the bioregistry paper
+psimi_reference = Reference.from_curie("doi:10.1021/acs.analchem.4c04091")
+
 
 class TestVersion(unittest.TestCase):
     """Trivially test a version."""
@@ -25,18 +29,40 @@ class TestVersion(unittest.TestCase):
         version = get_version()
         self.assertIsInstance(version, str)
 
-    def test_get_citations(self) -> None:
-        """Test getting citations."""
-        bioregistry_reference = "doi:10.1038/s41597-022-01807-3"
-        # this one cites the bioregistry paper
-        psimi_reference = Reference.from_curie("doi:10.1021/acs.analchem.4c04091")
-
-        citations = get_incoming_citations(bioregistry_reference)
+    def test_get_incoming_citations(self) -> None:
+        """Test getting incoming citations."""
+        self.assertIn(
+            psimi_reference.identifier,
+            get_incoming_citations(bioregistry_reference, return_type="str"),
+        )
+        self.assertIn(
+            psimi_reference, get_incoming_citations(bioregistry_reference, return_type="reference")
+        )
+        incoming_citations = get_incoming_citations(bioregistry_reference, return_type="citation")
         self.assertTrue(
             any(
                 reference == psimi_reference
-                for citation in citations
+                for citation in incoming_citations
                 for reference in citation.citing
+            )
+        )
+
+    def test_get_outgoing_citations(self) -> None:
+        """Test getting outgoing citations."""
+        self.assertIn(
+            bioregistry_reference.identifier,
+            get_incoming_citations(bioregistry_reference, return_type="str"),
+        )
+        self.assertIn(
+            bioregistry_reference,
+            get_incoming_citations(bioregistry_reference, return_type="reference"),
+        )
+        outgoing = get_incoming_citations(psimi_reference, return_type="citation")
+        self.assertTrue(
+            any(
+                reference == bioregistry_reference
+                for citation in outgoing
+                for reference in citation.cited
             )
         )
 
