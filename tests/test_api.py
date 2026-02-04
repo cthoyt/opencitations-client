@@ -8,7 +8,7 @@ from curies import Reference
 from opencitations_client.json_api_client import (
     get_articles,
     get_articles_for_author,
-    get_incoming_citations,
+    get_incoming_citations_from_api,
 )
 from opencitations_client.models import Person, Publisher, Venue, Work, process_work
 from opencitations_client.version import get_version
@@ -31,7 +31,9 @@ class TestVersion(unittest.TestCase):
 
     def test_get_incoming_citations(self) -> None:
         """Test getting incoming citations."""
-        incoming_citations = get_incoming_citations(bioregistry_reference, return_type="citation")
+        incoming_citations = get_incoming_citations_from_api(
+            bioregistry_reference, return_type="citation"
+        )
         self.assertTrue(
             any(
                 reference == psimi_reference
@@ -42,10 +44,11 @@ class TestVersion(unittest.TestCase):
 
         self.assertIn(
             psimi_reference.identifier,
-            get_incoming_citations(bioregistry_reference, return_type="str"),
+            get_incoming_citations_from_api(bioregistry_reference, return_type="str"),
         )
         self.assertIn(
-            psimi_reference, get_incoming_citations(bioregistry_reference, return_type="reference")
+            psimi_reference,
+            get_incoming_citations_from_api(bioregistry_reference, return_type="reference"),
         )
 
     def test_get_metadata(self) -> None:

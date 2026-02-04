@@ -26,19 +26,18 @@ __all__ = [
     "get_articles",
     "get_articles_for_author",
     "get_articles_for_editor",
-    "get_incoming_citations",
-    "get_outgoing_citations",
+    "get_incoming_citations_from_api",
+    "get_outgoing_citations_from_api",
 ]
 
 META_V1 = "https://api.opencitations.net/meta/v1"
 BASE_V2 = "https://api.opencitations.net/index/v2"
 AGENT = f"python-opencitations-client v{get_version()}"
-CITATION_PREFIXES = {"doi", "pubmed", "omid"}
 
 
 # docstr-coverage:excused `overload`
 @overload
-def get_outgoing_citations(
+def get_outgoing_citations_from_api(
     reference: str | Reference,
     *,
     token: str | None = ...,
@@ -48,7 +47,7 @@ def get_outgoing_citations(
 
 # docstr-coverage:excused `overload`
 @overload
-def get_outgoing_citations(
+def get_outgoing_citations_from_api(
     reference: str | Reference,
     *,
     token: str | None = ...,
@@ -58,7 +57,7 @@ def get_outgoing_citations(
 
 # docstr-coverage:excused `overload`
 @overload
-def get_outgoing_citations(
+def get_outgoing_citations_from_api(
     reference: str | Reference,
     *,
     token: str | None = ...,
@@ -66,7 +65,7 @@ def get_outgoing_citations(
 ) -> list[Citation]: ...
 
 
-def get_outgoing_citations(
+def get_outgoing_citations_from_api(
     reference: str | Reference,
     *,
     token: str | None = None,
@@ -103,7 +102,7 @@ def get_outgoing_citations(
 
 # docstr-coverage:excused `overload`
 @overload
-def get_incoming_citations(
+def get_incoming_citations_from_api(
     reference: str | Reference,
     *,
     token: str | None = ...,
@@ -113,7 +112,7 @@ def get_incoming_citations(
 
 # docstr-coverage:excused `overload`
 @overload
-def get_incoming_citations(
+def get_incoming_citations_from_api(
     reference: str | Reference,
     *,
     token: str | None = ...,
@@ -123,7 +122,7 @@ def get_incoming_citations(
 
 # docstr-coverage:excused `overload`
 @overload
-def get_incoming_citations(
+def get_incoming_citations_from_api(
     reference: str | Reference,
     *,
     token: str | None = ...,
@@ -131,7 +130,7 @@ def get_incoming_citations(
 ) -> list[Citation]: ...
 
 
-def get_incoming_citations(
+def get_incoming_citations_from_api(
     reference: str | Reference,
     *,
     token: str | None = None,

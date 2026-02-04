@@ -10,8 +10,8 @@ from .download import MODULE, iter_doi_citations, iter_omid_citations, iter_pubm
 from .models import Citation, CitationReturnType, handle_input
 
 __all__ = [
-    "get_incoming_citations",
-    "get_outgoing_citations",
+    "get_incoming_citations_from_cache",
+    "get_outgoing_citations_from_cache",
 ]
 
 pubmed_cache_paths = GraphCachePaths.from_directory(MODULE.join("database-pmid"))
@@ -61,26 +61,26 @@ def _get_cache(prefix: str) -> GraphCache:
 
 # docstr-coverage:excused `overload`
 @overload
-def get_outgoing_citations(
+def get_outgoing_citations_from_cache(
     reference: str | Reference, *, return_type: Literal["citation"] = ...
 ) -> list[Citation]: ...
 
 
 # docstr-coverage:excused `overload`
 @overload
-def get_outgoing_citations(
+def get_outgoing_citations_from_cache(
     reference: str | Reference, *, return_type: Literal["reference"] = ...
 ) -> list[Reference]: ...
 
 
 # docstr-coverage:excused `overload`
 @overload
-def get_outgoing_citations(
+def get_outgoing_citations_from_cache(
     reference: str | Reference, *, return_type: Literal["str"] = ...
 ) -> list[str]: ...
 
 
-def get_outgoing_citations(
+def get_outgoing_citations_from_cache(
     reference: str | Reference, *, return_type: CitationReturnType = "reference"
 ) -> list[Citation] | list[Reference] | list[str]:
     """Get outgoing citations as a list of local unique identifiers."""
@@ -95,26 +95,26 @@ def get_outgoing_citations(
 
 # docstr-coverage:excused `overload`
 @overload
-def get_incoming_citations(
+def get_incoming_citations_from_cache(
     reference: str | Reference, *, return_type: Literal["citation"] = ...
 ) -> list[Citation]: ...
 
 
 # docstr-coverage:excused `overload`
 @overload
-def get_incoming_citations(
+def get_incoming_citations_from_cache(
     reference: str | Reference, *, return_type: Literal["reference"] = ...
 ) -> list[Reference]: ...
 
 
 # docstr-coverage:excused `overload`
 @overload
-def get_incoming_citations(
+def get_incoming_citations_from_cache(
     reference: str | Reference, *, return_type: Literal["str"] = ...
 ) -> list[str]: ...
 
 
-def get_incoming_citations(
+def get_incoming_citations_from_cache(
     reference: str | Reference, *, return_type: CitationReturnType = "reference"
 ) -> list[Citation] | list[Reference] | list[str]:
     """Get incoming citations as a list of local unique identifiers."""

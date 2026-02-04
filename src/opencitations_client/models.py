@@ -22,8 +22,6 @@ __all__ = [
     "process_work",
 ]
 
-from opencitations_client.json_api_client import CITATION_PREFIXES
-
 
 class Citation(BaseModel):
     """Wraps the results from a citation."""
@@ -190,6 +188,8 @@ def get_reference_with_prefix(references: Iterable[Reference], prefix: str) -> R
 
 #: Citation return type
 CitationReturnType: TypeAlias = Literal["citation", "reference", "str"]
+
+CITATION_PREFIXES = {"doi", "pubmed", "omid"}
 
 
 def handle_input(reference: str | Reference) -> Reference:

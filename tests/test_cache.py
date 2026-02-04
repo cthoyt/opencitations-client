@@ -7,8 +7,8 @@ from curies import Reference
 from opencitations_client.cache import (
     _get_omid_cache,
     _get_pubmed_cache,
-    get_incoming_citations,
-    get_outgoing_citations,
+    get_incoming_citations_from_cache,
+    get_outgoing_citations_from_cache,
     omid_cache_paths,
     pubmed_cache_paths,
 )
@@ -32,10 +32,10 @@ class TestPubmedGraphCache(unittest.TestCase):
         #
         # see full metadata at https://api.opencitations.net/meta/v1/metadata/pmid:33917884
         example = Reference(prefix="pubmed", identifier="33917884")
-        outgoing_citations = get_outgoing_citations(example)
+        outgoing_citations = get_outgoing_citations_from_cache(example)
         self.assertGreaterEqual(len(outgoing_citations), 50)  # at least 50
         for c in outgoing_citations:
-            incoming = get_incoming_citations(
+            incoming = get_incoming_citations_from_cache(
                 Reference(prefix="pubmed", identifier=c), return_type="str"
             )
             self.assertIn(example.identifier, incoming)
@@ -47,7 +47,7 @@ class TestPubmedGraphCache(unittest.TestCase):
         #
         # see https://pubmed.ncbi.nlm.nih.gov/39514576/
         example = Reference(prefix="pubmed", identifier="39514576")
-        self.assertFalse(get_outgoing_citations(example))
+        self.assertFalse(get_outgoing_citations_from_cache(example))
 
 
 @unittest.skipUnless(omid_cache_paths.exists(), "can't run tests without cache")
@@ -68,10 +68,10 @@ class TestOMIDGraphCache(unittest.TestCase):
         #
         # see full metadata at https://api.opencitations.net/meta/v1/metadata/omid:br/06180450607
         example = Reference(prefix="omid", identifier="br/06180450607")
-        outgoing_citations = get_outgoing_citations(example)
+        outgoing_citations = get_outgoing_citations_from_cache(example)
         self.assertGreaterEqual(len(outgoing_citations), 50)  # at least 50
         for c in outgoing_citations:
-            incoming = get_incoming_citations(
+            incoming = get_incoming_citations_from_cache(
                 Reference(prefix="omid", identifier=c), return_type="str"
             )
             self.assertIn(example.identifier, incoming)
