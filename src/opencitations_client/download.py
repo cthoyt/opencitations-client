@@ -133,6 +133,7 @@ def ensure_citation_data_csv() -> list[Path]:
 
 def iterate_citations() -> Iterable[Citation]:
     """Download all files and iterate over all citations."""
+    _turn_up_the_size()
     for path in ensure_citation_data_csv():
         for record in iter_zipped_csvs(path, return_type="record"):
             yield process_citation(record)
@@ -189,6 +190,7 @@ def _get_external_citations(
             yield from reader
     else:
         omid_to_external = _get_omid_to_external(prefix, force_process=force_process)
+        _turn_up_the_size()
         with safe_open_writer(out_path) as writer:
             for path in tqdm(ensure_citation_data_csv(), desc="reading citations", unit="archive"):
                 for citation, *_ in iter_zipped_csvs(path, progress=True):
@@ -208,6 +210,7 @@ def iter_omid_citations(*, force_process: bool = False) -> Iterable[tuple[str, s
             yield from reader
     else:
         with safe_open_writer(out_path) as writer:
+            _turn_up_the_size()
             for path in tqdm(ensure_citation_data_csv(), desc="reading citations", unit="archive"):
                 for citation, *_ in iter_zipped_csvs(path, progress=True):
                     left, _, right = citation.lstrip("oci:").partition("-")
@@ -221,3 +224,11 @@ def ensure_source_nt() -> list[Path]:
     """Ensure the source data in NT format (23 GB zipped, 104 GB uncompressed)."""
     record_id = 24427051  # see https://doi.org/10.6084/m9.figshare.24427051
     return list(figshare_client.ensure_files(record_id))
+
+
+def _turn_up_the_size() -> None:
+    # see https://github.com/cthoyt/opencitations-client/issues/6
+    import csv
+    import sys
+
+    csv.field_size_limit(sys.maxsize)
