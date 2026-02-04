@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import datetime
 from collections.abc import Iterable
-from typing import Any, Literal, TypeVar
+from typing import Any, Literal, TypeAlias, TypeVar
 
 from curies import Reference
 from curies.utils import NoCURIEDelimiterError
@@ -13,6 +13,7 @@ from tqdm import tqdm
 
 __all__ = [
     "Citation",
+    "CitationReturnType",
     "Person",
     "Publisher",
     "Venue",
@@ -20,6 +21,8 @@ __all__ = [
     "process_citation",
     "process_work",
 ]
+
+from opencitations_client.json_api_client import CITATION_PREFIXES
 
 
 class Citation(BaseModel):
@@ -183,3 +186,19 @@ def get_reference_with_prefix(references: Iterable[Reference], prefix: str) -> R
         if reference.prefix == prefix:
             return reference
     return None
+
+
+#: Citation return type
+CitationReturnType: TypeAlias = Literal["citation", "reference", "str"]
+
+
+def handle_input(reference: str | Reference) -> Reference:
+    """Clean up a reference."""
+    if isinstance(reference, str):
+        reference = Reference.from_curie(reference)
+    if reference.prefix not in CITATION_PREFIXES:
+        raise ValueError(f"invalid prefix: {reference.prefix}, use one of {CITATION_PREFIXES}")
+    if reference.prefix == "pubmed":
+        # put it in the internal representation, which is non-standard
+        return Reference(prefix="pmid", identifier=reference.identifier)
+    return reference

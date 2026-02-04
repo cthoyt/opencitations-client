@@ -35,7 +35,9 @@ class TestPubmedGraphCache(unittest.TestCase):
         outgoing_citations = get_outgoing_citations(example)
         self.assertGreaterEqual(len(outgoing_citations), 50)  # at least 50
         for c in outgoing_citations:
-            incoming = get_incoming_citations(Reference(prefix="pubmed", identifier=c))
+            incoming = get_incoming_citations(
+                Reference(prefix="pubmed", identifier=c), return_type="str"
+            )
             self.assertIn(example.identifier, incoming)
 
     def test_missing(self) -> None:
@@ -69,5 +71,7 @@ class TestOMIDGraphCache(unittest.TestCase):
         outgoing_citations = get_outgoing_citations(example)
         self.assertGreaterEqual(len(outgoing_citations), 50)  # at least 50
         for c in outgoing_citations:
-            incoming = get_incoming_citations(Reference(prefix="omid", identifier=c))
+            incoming = get_incoming_citations(
+                Reference(prefix="omid", identifier=c), return_type="str"
+            )
             self.assertIn(example.identifier, incoming)

@@ -4,14 +4,22 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterator
-from typing import Literal, TypeAlias, overload
+from typing import Literal, overload
 
 import pystow
 import requests
 from curies import Reference
 from ratelimit import limits, sleep_and_retry
 
-from .models import Citation, Work, get_reference_with_prefix, process_citation, process_work
+from .models import (
+    Citation,
+    CitationReturnType,
+    Work,
+    get_reference_with_prefix,
+    handle_input,
+    process_citation,
+    process_work,
+)
 from .version import get_version
 
 __all__ = [
@@ -26,8 +34,6 @@ META_V1 = "https://api.opencitations.net/meta/v1"
 BASE_V2 = "https://api.opencitations.net/index/v2"
 AGENT = f"python-opencitations-client v{get_version()}"
 CITATION_PREFIXES = {"doi", "pubmed", "omid"}
-
-CitationReturnType: TypeAlias = Literal["citation", "reference", "str"]
 
 
 # docstr-coverage:excused `overload`
@@ -79,7 +85,7 @@ def get_outgoing_citations(
 
         https://api.opencitations.net/index/v2#/references/{id}
     """
-    reference = _handle_input(reference)
+    reference = handle_input(reference)
     res = _get_index_v2(f"/references/{reference.curie}", token=token)
     res.raise_for_status()
     citations: Iterator[Citation] = (process_citation(record) for record in res.json())
@@ -144,7 +150,7 @@ def get_incoming_citations(
 
         https://api.opencitations.net/index/v2#/citations/{id}
     """
-    reference = _handle_input(reference)
+    reference = handle_input(reference)
     res = _get_index_v2(f"/citations/{reference.curie}", token=token)
     res.raise_for_status()
     citations = [process_citation(record) for record in res.json()]
@@ -158,17 +164,6 @@ def get_incoming_citations(
     if return_type == "reference":
         return list(references)
     return [r.identifier for r in references]
-
-
-def _handle_input(reference: str | Reference) -> Reference:
-    if isinstance(reference, str):
-        reference = Reference.from_curie(reference)
-    if reference.prefix not in CITATION_PREFIXES:
-        raise ValueError(f"invalid prefix: {reference.prefix}, use one of {CITATION_PREFIXES}")
-    if reference.prefix == "pubmed":
-        # put it in the internal representation, which is non-standard
-        return Reference(prefix="pmid", identifier=reference.identifier)
-    return reference
 
 
 def _get_index_v2(part: str, *, token: str | None = None) -> requests.Response:
