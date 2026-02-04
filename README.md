@@ -47,9 +47,11 @@ outgoing_citation_references = get_outgoing_citations(bioregistry_reference)
 incoming_citation_references = get_incoming_citations(bioregistry_reference)
 ```
 
-By default, these functions interact with the [OpenCitations JSON API](https://api.opencitations.net/index/v2).
-If you're working in bulk, then you can have `opencitations-client` download OpenCitations in full
-and create a cache (between 3-8GB, depending on what you use) that can be warmed up in a matter of seconds.
+By default, these functions interact with the
+[OpenCitations JSON API](https://api.opencitations.net/index/v2). If you're
+working in bulk, then you can have `opencitations-client` download OpenCitations
+in full and create a cache (between 3-8GB, depending on what you use) that can
+be warmed up in a matter of seconds.
 
 ```python
 from opencitations_client import get_incoming_citations, get_outgoing_citations
