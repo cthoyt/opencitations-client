@@ -31,24 +31,36 @@ CitationReturnType: TypeAlias = Literal["citation", "reference", "str"]
 
 @overload
 def get_outgoing_citations(
-    reference: str | Reference, *, token: str | None = ..., return_type: Literal["str"] = ...,
+    reference: str | Reference,
+    *,
+    token: str | None = ...,
+    return_type: Literal["str"] = ...,
 ) -> list[str]: ...
 
 
 @overload
 def get_outgoing_citations(
-    reference: str | Reference, *, token: str | None = ..., return_type: Literal["reference"] = ...,
+    reference: str | Reference,
+    *,
+    token: str | None = ...,
+    return_type: Literal["reference"] = ...,
 ) -> list[Reference]: ...
 
 
 @overload
 def get_outgoing_citations(
-    reference: str | Reference, *, token: str | None = ..., return_type: Literal["citation"] = ...,
+    reference: str | Reference,
+    *,
+    token: str | None = ...,
+    return_type: Literal["citation"] = ...,
 ) -> list[Citation]: ...
 
 
 def get_outgoing_citations(
-    reference: str | Reference, *, token: str | None = None, return_type: CitationReturnType = "citation",
+    reference: str | Reference,
+    *,
+    token: str | None = None,
+    return_type: CitationReturnType = "citation",
 ) -> list[Citation] | list[Reference] | list[str]:
     """Get the articles that the given article cites, from OpenCitations.
 
@@ -81,24 +93,36 @@ def get_outgoing_citations(
 
 @overload
 def get_incoming_citations(
-    reference: str | Reference, *, token: str | None = ..., return_type: Literal["str"] = ...,
+    reference: str | Reference,
+    *,
+    token: str | None = ...,
+    return_type: Literal["str"] = ...,
 ) -> list[str]: ...
 
 
 @overload
 def get_incoming_citations(
-    reference: str | Reference, *, token: str | None = ..., return_type: Literal["reference"] = ...,
+    reference: str | Reference,
+    *,
+    token: str | None = ...,
+    return_type: Literal["reference"] = ...,
 ) -> list[Reference]: ...
 
 
 @overload
 def get_incoming_citations(
-    reference: str | Reference, *, token: str | None = ..., return_type: Literal["citation"] = ...,
+    reference: str | Reference,
+    *,
+    token: str | None = ...,
+    return_type: Literal["citation"] = ...,
 ) -> list[Citation]: ...
 
 
 def get_incoming_citations(
-    reference: str | Reference, *, token: str | None = None, return_type: CitationReturnType = "citation",
+    reference: str | Reference,
+    *,
+    token: str | None = None,
+    return_type: CitationReturnType = "citation",
 ) -> list[Citation] | list[Reference] | list[str]:
     """Get the articles that cite a given article, from OpenCitations.
 
