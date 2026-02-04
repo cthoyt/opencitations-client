@@ -68,8 +68,10 @@ class TestOMIDGraphCache(unittest.TestCase):
         #
         # see full metadata at https://api.opencitations.net/meta/v1/metadata/omid:br/06180450607
         example_reference = Reference(prefix="omid", identifier="br/06180450607")
-        outgoing_citations = get_outgoing_citations_from_cache(example_reference)
-        self.assertGreaterEqual(len(outgoing_citations), 50)  # at least 50
-        for outgoing_citation in outgoing_citations:
+        outgoing_citation_references = get_outgoing_citations_from_cache(
+            example_reference, return_type="reference"
+        )
+        self.assertGreaterEqual(len(outgoing_citation_references), 50)  # at least 50
+        for outgoing_citation in outgoing_citation_references:
             incoming = get_incoming_citations_from_cache(outgoing_citation, return_type="reference")
             self.assertIn(example_reference, incoming)

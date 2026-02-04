@@ -36,15 +36,31 @@ Access and download data from OpenCitations.
 ## 💪 Getting Started
 
 ```python
-from opencitations_client import get_incoming_citations_from_api, get_outgoing_citations_from_api
+from opencitations_client import get_incoming_citations, get_outgoing_citations
 
 bioregistry_reference = "doi:10.1038/s41597-022-01807-3"
 
 # who did the Bioregistry paper cite?
-outgoing_citations = get_outgoing_citations_from_api(bioregistry_reference)
+outgoing_citation_references = get_outgoing_citations(bioregistry_reference)
 
 # who cited the Bioregistry paper?
-incoming_citations = get_incoming_citations_from_api(bioregistry_reference)
+incoming_citation_references = get_incoming_citations(bioregistry_reference)
+```
+
+By default, these functions interact with the [OpenCitations JSON API](https://api.opencitations.net/index/v2).
+If you're working in bulk, then you can have `opencitations-client` download OpenCitations in full
+and create a cache (between 3-8GB, depending on what you use) that can be warmed up in a matter of seconds.
+
+```python
+from opencitations_client import get_incoming_citations, get_outgoing_citations
+
+bioregistry_reference = "doi:10.1038/s41597-022-01807-3"
+
+# who did the Bioregistry paper cite?
+outgoing_citation_references = get_outgoing_citations(bioregistry_reference, backend="local")
+
+# who cited the Bioregistry paper?
+incoming_citation_references = get_incoming_citations(bioregistry_reference, backend="local")
 ```
 
 ## 🚀 Installation

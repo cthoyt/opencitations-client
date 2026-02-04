@@ -14,7 +14,7 @@ __all__ = [
     "get_outgoing_citations",
 ]
 
-Backend: TypeAlias = Literal["api", "cache"]
+Backend: TypeAlias = Literal["api", "local"]
 
 
 # docstr-coverage:excused `overload`
@@ -73,7 +73,7 @@ def get_outgoing_citations(
     """
     if backend == "api":
         return get_outgoing_citations_from_api(reference, token=token, return_type=return_type)
-    elif backend == "cache":
+    elif backend == "local":
         return get_outgoing_citations_from_cache(reference, return_type=return_type)
     else:
         raise ValueError(f"backend {backend} not supported")
@@ -135,7 +135,7 @@ def get_incoming_citations(
     """
     if backend == "api":
         return get_incoming_citations_from_api(reference, token=token, return_type=return_type)
-    elif backend == "cache":
+    elif backend == "local":
         return get_incoming_citations_from_cache(reference, return_type=return_type)
     else:
         raise ValueError(f"backend {backend} not supported")
