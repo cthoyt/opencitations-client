@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from typing import Literal, TypeAlias, overload
 
 import pystow
 import requests
@@ -25,15 +26,37 @@ BASE_V2 = "https://api.opencitations.net/index/v2"
 AGENT = f"python-opencitations-client v{get_version()}"
 CITATION_PREFIXES = {"doi", "pubmed", "omid"}
 
+CitationReturnType: TypeAlias = Literal["citation", "reference", "str"]
+
+
+@overload
+def get_outgoing_citations(
+    reference: str | Reference, *, token: str | None = ..., return_type: Literal["str"] = ...,
+) -> list[str]: ...
+
+
+@overload
+def get_outgoing_citations(
+    reference: str | Reference, *, token: str | None = ..., return_type: Literal["reference"] = ...,
+) -> list[Reference]: ...
+
+
+@overload
+def get_outgoing_citations(
+    reference: str | Reference, *, token: str | None = ..., return_type: Literal["citation"] = ...,
+) -> list[Citation]: ...
+
 
 def get_outgoing_citations(
-    reference: str | Reference, *, token: str | None = None
-) -> list[Citation]:
+    reference: str | Reference, *, token: str | None = None, return_type: CitationReturnType = "citation",
+) -> list[Citation] | list[Reference] | list[str]:
     """Get the articles that the given article cites, from OpenCitations.
 
     :param reference: The reference to get citations for
     :param token: The token to use for authentication.
         Loaded via :func:`pystow.get_config` if not given explicitly
+    :param return_type: The return type for citations. If using references or strings,
+        will filter by the same prefix as the query reference
     :return: A list of citations
 
     .. seealso::
@@ -42,17 +65,48 @@ def get_outgoing_citations(
     """
     res = _get_index_v2(f"/references/{_handle_input(reference)}", token=token)
     res.raise_for_status()
-    return [process_citation(record) for record in res.json()]
+    citations = [process_citation(record) for record in res.json()]
+    if return_type == "citation":
+        return citations
+    references = (
+        incoming_reference
+        for citation in citations
+        if (incoming_reference := _get_r(citation.cited, reference.prefix))
+    )
+    if return_type == "reference":
+        return list(references)
+
+    return [r.identifier for r in references]
+
+
+@overload
+def get_incoming_citations(
+    reference: str | Reference, *, token: str | None = ..., return_type: Literal["str"] = ...,
+) -> list[str]: ...
+
+
+@overload
+def get_incoming_citations(
+    reference: str | Reference, *, token: str | None = ..., return_type: Literal["reference"] = ...,
+) -> list[Reference]: ...
+
+
+@overload
+def get_incoming_citations(
+    reference: str | Reference, *, token: str | None = ..., return_type: Literal["citation"] = ...,
+) -> list[Citation]: ...
 
 
 def get_incoming_citations(
-    reference: str | Reference, *, token: str | None = None
-) -> list[Citation]:
+    reference: str | Reference, *, token: str | None = None, return_type: CitationReturnType = "citation",
+) -> list[Citation] | list[Reference] | list[str]:
     """Get the articles that cite a given article, from OpenCitations.
 
     :param reference: The reference to get citations for
     :param token: The token to use for authentication.
         Loaded via :func:`pystow.get_config` if not given explicitly
+    :param return_type: The return type for citations. If using references or strings,
+        will filter by the same prefix as the query reference
     :return: A list of citations
 
     .. seealso::
@@ -61,7 +115,24 @@ def get_incoming_citations(
     """
     res = _get_index_v2(f"/citations/{_handle_input(reference)}", token=token)
     res.raise_for_status()
-    return [process_citation(record) for record in res.json()]
+    citations = [process_citation(record) for record in res.json()]
+    if return_type == "citation":
+        return citations
+    references = (
+        incoming_reference
+        for citation in citations
+        if (incoming_reference := _get_r(citation.citing, reference.prefix))
+    )
+    if return_type == "reference":
+        return list(references)
+    return [r.identifier for r in references]
+
+
+def _get_r(references: list[Reference], prefix) -> Reference | None:
+    for reference in references:
+        if reference.prefix == prefix:
+            return reference
+    return None
 
 
 def _handle_input(reference: str | Reference) -> str:
