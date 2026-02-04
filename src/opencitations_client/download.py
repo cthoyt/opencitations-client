@@ -53,9 +53,14 @@ def ensure_metadata_csv() -> Path:
 def iter_metadata() -> Iterable[Work]:
     """Iterate over all documents."""
     path = ensure_metadata_csv()
-    for record in iter_tarred_csvs(
-        path, return_type="record", progress=True, max_line_length=100_000
-    ):
+
+    # see https://github.com/cthoyt/opencitations-client/issues/6
+    import csv
+    import sys
+
+    csv.field_size_limit(sys.maxsize)
+
+    for record in iter_tarred_csvs(path, return_type="record", progress=True):
         yield process_work(record)
 
 
