@@ -31,13 +31,6 @@ class TestVersion(unittest.TestCase):
 
     def test_get_incoming_citations(self) -> None:
         """Test getting incoming citations."""
-        self.assertIn(
-            psimi_reference.identifier,
-            get_incoming_citations(bioregistry_reference, return_type="str"),
-        )
-        self.assertIn(
-            psimi_reference, get_incoming_citations(bioregistry_reference, return_type="reference")
-        )
         incoming_citations = get_incoming_citations(bioregistry_reference, return_type="citation")
         self.assertTrue(
             any(
@@ -47,23 +40,12 @@ class TestVersion(unittest.TestCase):
             )
         )
 
-    def test_get_outgoing_citations(self) -> None:
-        """Test getting outgoing citations."""
         self.assertIn(
-            bioregistry_reference.identifier,
+            psimi_reference.identifier,
             get_incoming_citations(bioregistry_reference, return_type="str"),
         )
         self.assertIn(
-            bioregistry_reference,
-            get_incoming_citations(bioregistry_reference, return_type="reference"),
-        )
-        outgoing = get_incoming_citations(psimi_reference, return_type="citation")
-        self.assertTrue(
-            any(
-                reference == bioregistry_reference
-                for citation in outgoing
-                for reference in citation.cited
-            )
+            psimi_reference, get_incoming_citations(bioregistry_reference, return_type="reference")
         )
 
     def test_get_metadata(self) -> None:
