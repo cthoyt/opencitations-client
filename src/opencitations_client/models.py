@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime
+from collections.abc import Iterable
 from typing import Any, Literal, TypeVar
 
 from curies import Reference
@@ -100,17 +101,15 @@ class Work(BaseModel):
     @property
     def omid(self) -> str:
         """Get the OMID for the document."""
-        for r in self.references:
-            if r.prefix == "omid":
-                return r.identifier
+        if rv := get_reference_with_prefix(self.references, "omid"):
+            return rv.identifier
         raise ValueError(f"invalid omid: {self.omid}")
 
     @property
     def pubmed(self) -> str | None:
         """Get the PubMed identifier for the document, if it exists."""
-        for r in self.references:
-            if r.prefix == "pmid":
-                return r.identifier
+        if rv := get_reference_with_prefix(self.references, "pmid"):
+            return rv.identifier
         return None
 
 
@@ -176,3 +175,11 @@ def _bool(s: Literal["yes", "no"]) -> bool:
         return True
     else:
         raise ValueError(f"invalid boolean value: {s}")
+
+
+def get_reference_with_prefix(references: Iterable[Reference], prefix: str) -> Reference | None:
+    """Get a reference with the given prefix."""
+    for reference in references:
+        if reference.prefix == prefix:
+            return reference
+    return None

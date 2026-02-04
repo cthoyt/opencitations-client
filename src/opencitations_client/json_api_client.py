@@ -11,7 +11,7 @@ import requests
 from curies import Reference
 from ratelimit import limits, sleep_and_retry
 
-from .models import Citation, Work, process_citation, process_work
+from .models import Citation, Work, get_reference_with_prefix, process_citation, process_work
 from .version import get_version
 
 __all__ = [
@@ -88,7 +88,7 @@ def get_outgoing_citations(
     references = (
         incoming_reference
         for citation in citations
-        if (incoming_reference := _get_r(citation.cited, reference.prefix))
+        if (incoming_reference := get_reference_with_prefix(citation.cited, reference.prefix))
     )
     if return_type == "reference":
         return list(references)
@@ -153,18 +153,11 @@ def get_incoming_citations(
     references = (
         incoming_reference
         for citation in citations
-        if (incoming_reference := _get_r(citation.citing, reference.prefix))
+        if (incoming_reference := get_reference_with_prefix(citation.citing, reference.prefix))
     )
     if return_type == "reference":
         return list(references)
     return [r.identifier for r in references]
-
-
-def _get_r(references: list[Reference], prefix: str) -> Reference | None:
-    for reference in references:
-        if reference.prefix == prefix:
-            return reference
-    return None
 
 
 def _handle_input(reference: str | Reference) -> Reference:
