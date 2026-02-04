@@ -55,7 +55,7 @@ def get_outgoing_citations(
     *,
     backend: Backend = "api",
     token: str | None = None,
-    return_type: CitationReturnType = "citation",
+    return_type: CitationReturnType = "reference",
 ) -> list[Citation] | list[Reference] | list[str]:
     """Get the articles that the given article cites, from OpenCitations.
 
@@ -117,7 +117,7 @@ def get_incoming_citations(
     *,
     backend: Backend = "api",
     token: str | None = None,
-    return_type: CitationReturnType = "citation",
+    return_type: CitationReturnType = "reference",
 ) -> list[Citation] | list[Reference] | list[str]:
     """Get the articles that cite a given article, from OpenCitations.
 

@@ -67,11 +67,9 @@ class TestOMIDGraphCache(unittest.TestCase):
         # Microbiome Composition
         #
         # see full metadata at https://api.opencitations.net/meta/v1/metadata/omid:br/06180450607
-        example = Reference(prefix="omid", identifier="br/06180450607")
-        outgoing_citations = get_outgoing_citations_from_cache(example)
+        example_reference = Reference(prefix="omid", identifier="br/06180450607")
+        outgoing_citations = get_outgoing_citations_from_cache(example_reference)
         self.assertGreaterEqual(len(outgoing_citations), 50)  # at least 50
-        for c in outgoing_citations:
-            incoming = get_incoming_citations_from_cache(
-                Reference(prefix="omid", identifier=c), return_type="str"
-            )
-            self.assertIn(example.identifier, incoming)
+        for outgoing_citation in outgoing_citations:
+            incoming = get_incoming_citations_from_cache(outgoing_citation, return_type="reference")
+            self.assertIn(example_reference, incoming)
