@@ -8,10 +8,14 @@ from curies import Reference
 from opencitations_client.json_api_client import (
     get_articles,
     get_articles_for_author,
-    get_incoming_citations,
+    get_incoming_citations_from_api,
 )
 from opencitations_client.models import Person, Publisher, Venue, Work, process_work
 from opencitations_client.version import get_version
+
+bioregistry_reference = Reference.from_curie("doi:10.1038/s41597-022-01807-3")
+# this one cites the bioregistry paper
+psimi_reference = Reference.from_curie("doi:10.1021/acs.analchem.4c04091")
 
 
 class TestVersion(unittest.TestCase):
@@ -25,19 +29,26 @@ class TestVersion(unittest.TestCase):
         version = get_version()
         self.assertIsInstance(version, str)
 
-    def test_get_citations(self) -> None:
-        """Test getting citations."""
-        bioregistry_reference = "doi:10.1038/s41597-022-01807-3"
-        # this one cites the bioregistry paper
-        psimi_reference = Reference.from_curie("doi:10.1021/acs.analchem.4c04091")
-
-        citations = get_incoming_citations(bioregistry_reference)
+    def test_get_incoming_citations(self) -> None:
+        """Test getting incoming citations."""
+        incoming_citations = get_incoming_citations_from_api(
+            bioregistry_reference, return_type="citation"
+        )
         self.assertTrue(
             any(
                 reference == psimi_reference
-                for citation in citations
+                for citation in incoming_citations
                 for reference in citation.citing
             )
+        )
+
+        self.assertIn(
+            psimi_reference.identifier,
+            get_incoming_citations_from_api(bioregistry_reference, return_type="str"),
+        )
+        self.assertIn(
+            psimi_reference,
+            get_incoming_citations_from_api(bioregistry_reference, return_type="reference"),
         )
 
     def test_get_metadata(self) -> None:

@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import datetime
-from typing import Any, Literal, TypeVar
+from collections.abc import Iterable
+from typing import Any, Literal, TypeAlias, TypeVar
 
 from curies import Reference
 from curies.utils import NoCURIEDelimiterError
@@ -12,6 +13,7 @@ from tqdm import tqdm
 
 __all__ = [
     "Citation",
+    "CitationReturnType",
     "Person",
     "Publisher",
     "Venue",
@@ -100,17 +102,15 @@ class Work(BaseModel):
     @property
     def omid(self) -> str:
         """Get the OMID for the document."""
-        for r in self.references:
-            if r.prefix == "omid":
-                return r.identifier
+        if rv := get_reference_with_prefix(self.references, "omid"):
+            return rv.identifier
         raise ValueError(f"invalid omid: {self.omid}")
 
     @property
     def pubmed(self) -> str | None:
         """Get the PubMed identifier for the document, if it exists."""
-        for r in self.references:
-            if r.prefix == "pmid":
-                return r.identifier
+        if rv := get_reference_with_prefix(self.references, "pmid"):
+            return rv.identifier
         return None
 
 
@@ -176,3 +176,29 @@ def _bool(s: Literal["yes", "no"]) -> bool:
         return True
     else:
         raise ValueError(f"invalid boolean value: {s}")
+
+
+def get_reference_with_prefix(references: Iterable[Reference], prefix: str) -> Reference | None:
+    """Get a reference with the given prefix."""
+    for reference in references:
+        if reference.prefix == prefix:
+            return reference
+    return None
+
+
+#: Citation return type
+CitationReturnType: TypeAlias = Literal["citation", "reference", "str"]
+
+CITATION_PREFIXES = {"doi", "pubmed", "omid"}
+
+
+def handle_input(reference: str | Reference) -> Reference:
+    """Clean up a reference."""
+    if isinstance(reference, str):
+        reference = Reference.from_curie(reference)
+    if reference.prefix not in CITATION_PREFIXES:
+        raise ValueError(f"invalid prefix: {reference.prefix}, use one of {CITATION_PREFIXES}")
+    if reference.prefix == "pubmed":
+        # put it in the internal representation, which is non-standard
+        return Reference(prefix="pmid", identifier=reference.identifier)
+    return reference

@@ -1,15 +1,17 @@
 """Database operations."""
 
 from functools import lru_cache
+from typing import Literal, overload
 
 from curies import Reference
 from pystow.graph import GraphCache, GraphCachePaths, build_graph_cache
 
 from .download import MODULE, iter_doi_citations, iter_omid_citations, iter_pubmed_citations
+from .models import Citation, CitationReturnType, handle_input
 
 __all__ = [
-    "get_incoming_citations",
-    "get_outgoing_citations",
+    "get_incoming_citations_from_cache",
+    "get_outgoing_citations_from_cache",
 ]
 
 pubmed_cache_paths = GraphCachePaths.from_directory(MODULE.join("database-pmid"))
@@ -57,11 +59,69 @@ def _get_cache(prefix: str) -> GraphCache:
             raise NotImplementedError(f"citation lookup not implemented for prefix: {prefix}")
 
 
-def get_outgoing_citations(reference: Reference) -> list[str]:
+# docstr-coverage:excused `overload`
+@overload
+def get_outgoing_citations_from_cache(
+    reference: str | Reference, *, return_type: Literal["citation"] = ...
+) -> list[Citation]: ...
+
+
+# docstr-coverage:excused `overload`
+@overload
+def get_outgoing_citations_from_cache(
+    reference: str | Reference, *, return_type: Literal["reference"] = ...
+) -> list[Reference]: ...
+
+
+# docstr-coverage:excused `overload`
+@overload
+def get_outgoing_citations_from_cache(
+    reference: str | Reference, *, return_type: Literal["str"] = ...
+) -> list[str]: ...
+
+
+def get_outgoing_citations_from_cache(
+    reference: str | Reference, *, return_type: CitationReturnType = "reference"
+) -> list[Citation] | list[Reference] | list[str]:
     """Get outgoing citations as a list of local unique identifiers."""
-    return _get_cache(reference.prefix).out_edges(reference.identifier)
+    if return_type == "citation":
+        raise NotImplementedError("cache-based citation lookup can't return full citation yet")
+    reference = handle_input(reference)
+    identifiers = _get_cache(reference.prefix).out_edges(reference.identifier)
+    if return_type == "str":
+        return identifiers
+    return [Reference(prefix=reference.prefix, identifier=identifier) for identifier in identifiers]
 
 
-def get_incoming_citations(reference: Reference) -> list[str]:
+# docstr-coverage:excused `overload`
+@overload
+def get_incoming_citations_from_cache(
+    reference: str | Reference, *, return_type: Literal["citation"] = ...
+) -> list[Citation]: ...
+
+
+# docstr-coverage:excused `overload`
+@overload
+def get_incoming_citations_from_cache(
+    reference: str | Reference, *, return_type: Literal["reference"] = ...
+) -> list[Reference]: ...
+
+
+# docstr-coverage:excused `overload`
+@overload
+def get_incoming_citations_from_cache(
+    reference: str | Reference, *, return_type: Literal["str"] = ...
+) -> list[str]: ...
+
+
+def get_incoming_citations_from_cache(
+    reference: str | Reference, *, return_type: CitationReturnType = "reference"
+) -> list[Citation] | list[Reference] | list[str]:
     """Get incoming citations as a list of local unique identifiers."""
-    return _get_cache(reference.prefix).in_edges(reference.identifier)
+    if return_type == "citation":
+        raise NotImplementedError("cache-based citation lookup can't return full citation yet")
+    reference = handle_input(reference)
+    identifiers = _get_cache(reference.prefix).in_edges(reference.identifier)
+    if return_type == "str":
+        return identifiers
+    return [Reference(prefix=reference.prefix, identifier=identifier) for identifier in identifiers]

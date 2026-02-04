@@ -1,5 +1,6 @@
 """Access and download data from OpenCitations."""
 
+from .api import Backend, get_incoming_citations, get_outgoing_citations
 from .client import (
     get_doi_from_omid,
     get_doi_to_omid,
@@ -27,13 +28,15 @@ from .json_api_client import (
     get_articles,
     get_articles_for_author,
     get_articles_for_editor,
-    get_incoming_citations,
-    get_outgoing_citations,
+    get_incoming_citations_from_api,
+    get_outgoing_citations_from_api,
 )
-from .models import Citation, Person, Publisher, Venue, Work
+from .models import Citation, CitationReturnType, Person, Publisher, Venue, Work
 
 __all__ = [
+    "Backend",
     "Citation",
+    "CitationReturnType",
     "Person",
     "Publisher",
     "Venue",
@@ -55,11 +58,13 @@ __all__ = [
     "get_doi_from_omid",
     "get_doi_to_omid",
     "get_incoming_citations",
+    "get_incoming_citations_from_api",
     "get_omid_from_doi",
     "get_omid_from_pubmed",
     "get_omid_to_doi",
     "get_omid_to_pubmed",
     "get_outgoing_citations",
+    "get_outgoing_citations_from_api",
     "get_pubmed_from_omid",
     "get_pubmed_to_omid",
 ]

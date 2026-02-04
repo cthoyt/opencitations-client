@@ -3,77 +3,166 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
+from typing import Literal, overload
 
 import pystow
 import requests
 from curies import Reference
 from ratelimit import limits, sleep_and_retry
 
-from .models import Citation, Work, process_citation, process_work
+from .models import (
+    Citation,
+    CitationReturnType,
+    Work,
+    get_reference_with_prefix,
+    handle_input,
+    process_citation,
+    process_work,
+)
 from .version import get_version
 
 __all__ = [
     "get_articles",
     "get_articles_for_author",
     "get_articles_for_editor",
-    "get_incoming_citations",
-    "get_outgoing_citations",
+    "get_incoming_citations_from_api",
+    "get_outgoing_citations_from_api",
 ]
 
 META_V1 = "https://api.opencitations.net/meta/v1"
 BASE_V2 = "https://api.opencitations.net/index/v2"
 AGENT = f"python-opencitations-client v{get_version()}"
-CITATION_PREFIXES = {"doi", "pubmed", "omid"}
 
 
-def get_outgoing_citations(
-    reference: str | Reference, *, token: str | None = None
-) -> list[Citation]:
+# docstr-coverage:excused `overload`
+@overload
+def get_outgoing_citations_from_api(
+    reference: str | Reference,
+    *,
+    token: str | None = ...,
+    return_type: Literal["str"] = ...,
+) -> list[str]: ...
+
+
+# docstr-coverage:excused `overload`
+@overload
+def get_outgoing_citations_from_api(
+    reference: str | Reference,
+    *,
+    token: str | None = ...,
+    return_type: Literal["reference"] = ...,
+) -> list[Reference]: ...
+
+
+# docstr-coverage:excused `overload`
+@overload
+def get_outgoing_citations_from_api(
+    reference: str | Reference,
+    *,
+    token: str | None = ...,
+    return_type: Literal["citation"] = ...,
+) -> list[Citation]: ...
+
+
+def get_outgoing_citations_from_api(
+    reference: str | Reference,
+    *,
+    token: str | None = None,
+    return_type: CitationReturnType = "citation",
+) -> list[Citation] | list[Reference] | list[str]:
     """Get the articles that the given article cites, from OpenCitations.
 
     :param reference: The reference to get citations for
     :param token: The token to use for authentication.
         Loaded via :func:`pystow.get_config` if not given explicitly
+    :param return_type: The return type for citations. If using references or strings,
+        will filter by the same prefix as the query reference
     :return: A list of citations
 
     .. seealso::
 
         https://api.opencitations.net/index/v2#/references/{id}
     """
-    res = _get_index_v2(f"/references/{_handle_input(reference)}", token=token)
+    reference = handle_input(reference)
+    res = _get_index_v2(f"/references/{reference.curie}", token=token)
     res.raise_for_status()
-    return [process_citation(record) for record in res.json()]
+    citations: Iterator[Citation] = (process_citation(record) for record in res.json())
+    if return_type == "citation":
+        return list(citations)
+    references = (
+        incoming_reference
+        for citation in citations
+        if (incoming_reference := get_reference_with_prefix(citation.cited, reference.prefix))
+    )
+    if return_type == "reference":
+        return list(references)
+    return [r.identifier for r in references]
 
 
-def get_incoming_citations(
-    reference: str | Reference, *, token: str | None = None
-) -> list[Citation]:
+# docstr-coverage:excused `overload`
+@overload
+def get_incoming_citations_from_api(
+    reference: str | Reference,
+    *,
+    token: str | None = ...,
+    return_type: Literal["str"] = ...,
+) -> list[str]: ...
+
+
+# docstr-coverage:excused `overload`
+@overload
+def get_incoming_citations_from_api(
+    reference: str | Reference,
+    *,
+    token: str | None = ...,
+    return_type: Literal["reference"] = ...,
+) -> list[Reference]: ...
+
+
+# docstr-coverage:excused `overload`
+@overload
+def get_incoming_citations_from_api(
+    reference: str | Reference,
+    *,
+    token: str | None = ...,
+    return_type: Literal["citation"] = ...,
+) -> list[Citation]: ...
+
+
+def get_incoming_citations_from_api(
+    reference: str | Reference,
+    *,
+    token: str | None = None,
+    return_type: CitationReturnType = "citation",
+) -> list[Citation] | list[Reference] | list[str]:
     """Get the articles that cite a given article, from OpenCitations.
 
     :param reference: The reference to get citations for
     :param token: The token to use for authentication.
         Loaded via :func:`pystow.get_config` if not given explicitly
+    :param return_type: The return type for citations. If using references or strings,
+        will filter by the same prefix as the query reference
     :return: A list of citations
 
     .. seealso::
 
         https://api.opencitations.net/index/v2#/citations/{id}
     """
-    res = _get_index_v2(f"/citations/{_handle_input(reference)}", token=token)
+    reference = handle_input(reference)
+    res = _get_index_v2(f"/citations/{reference.curie}", token=token)
     res.raise_for_status()
-    return [process_citation(record) for record in res.json()]
-
-
-def _handle_input(reference: str | Reference) -> str:
-    if isinstance(reference, str):
-        reference = Reference.from_curie(reference)
-    if reference.prefix not in CITATION_PREFIXES:
-        raise ValueError(f"invalid prefix: {reference.prefix}, use one of {CITATION_PREFIXES}")
-    if reference.prefix == "pubmed":
-        # put it in the internal representation, which is non-standard
-        return f"pmid:{reference.identifier}"
-    else:
-        return reference.curie
+    citations = [process_citation(record) for record in res.json()]
+    if return_type == "citation":
+        return citations
+    references = (
+        incoming_reference
+        for citation in citations
+        if (incoming_reference := get_reference_with_prefix(citation.citing, reference.prefix))
+    )
+    if return_type == "reference":
+        return list(references)
+    return [r.identifier for r in references]
 
 
 def _get_index_v2(part: str, *, token: str | None = None) -> requests.Response:
