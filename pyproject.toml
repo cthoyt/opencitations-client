@@ -43,6 +43,7 @@ keywords = [
 
 # License Information.
 # See PEP-639 at https://peps.python.org/pep-0639/#add-license-files-key
+license = "MIT"
 license-files = [
     "LICENSE",
 ]
