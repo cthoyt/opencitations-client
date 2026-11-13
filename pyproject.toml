@@ -20,18 +20,17 @@ classifiers = [
     "Development Status :: 1 - Planning",
     "Environment :: Console",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Framework :: Pytest",
     "Framework :: tox",
     "Framework :: Sphinx",
     "Natural Language :: English",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Programming Language :: Python :: 3 :: Only",
     "Typing :: Typed",
     # TODO add your topics from the Trove controlled vocabulary (see https://pypi.org/classifiers)
@@ -48,10 +47,10 @@ license-files = [
     "LICENSE",
 ]
 
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
-    "curies",
-    "pystow>=0.7.21",
+    "curies>=0.15.7",
+    "pystow>=0.10.3",
     "pydantic",
     "requests",
     "ratelimit",
@@ -67,7 +66,7 @@ tests = [
     "coverage[toml]",
 ]
 docs = [
-    "sphinx>=8,<9",
+    "sphinx>=9",
     "sphinx-rtd-theme>=3.0",
     "sphinx-click",
     "sphinx_automodapi",
