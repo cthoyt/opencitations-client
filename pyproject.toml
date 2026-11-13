@@ -55,7 +55,7 @@ dependencies = [
     "pydantic",
     "requests",
     "ratelimit",
-    "figshare-client>=0.0.3",
+    "figshare-client>=0.0.4",
     "zenodo-client>=0.4.2",
     "numpy",
 ]
